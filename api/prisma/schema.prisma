@@ -8,17 +8,17 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      Role     @default(AGENT)
-  leadScope LeadScope @default(OWN) // configurável: OWN ou ALL
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String    @id @default(uuid())
+  name       String
+  email      String    @unique
+  password   String
+  role       Role      @default(AGENT)
+  leadScope  LeadScope @default(OWN) // configurável: OWN ou ALL
+  active     Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
-  leads     Lead[]   @relation("LeadOwner")
+  leads      Lead[]    @relation("LeadOwner")
 }
 
 enum Role {
@@ -38,10 +38,12 @@ model Stage {
   order     Int
   isClosed  Boolean  @default(false) // stage "Fechados"
   createdAt DateTime @default(now())
+
+  leads     Lead[]    // <-- lado oposto da relação com Lead.stage
 }
 
 model Lead {
-  id          String   @id @default(uuid())
+  id          String     @id @default(uuid())
   name        String
   phone       String?
   email       String?
@@ -50,17 +52,17 @@ model Lead {
   notes       String?
 
   stageId     String
-  stage       Stage    @relation(fields: [stageId], references: [id])
+  stage       Stage      @relation(fields: [stageId], references: [id])
 
   ownerId     String?
-  owner       User?    @relation("LeadOwner", fields: [ownerId], references: [id])
+  owner       User?      @relation("LeadOwner", fields: [ownerId], references: [id])
 
-  valueCents  Int      @default(0)
+  valueCents  Int        @default(0)
   status      LeadStatus @default(OPEN)
 
   closedAt    DateTime?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   sale        Sale?
 }
