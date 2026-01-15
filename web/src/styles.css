@@ -1,0 +1,33 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Light */
+  --bg: 245 246 248;
+  --panel: 255 255 255;
+  --text: 20 22 28;
+  --muted: 110 116 129;
+  --border: 228 231 236;
+
+  /* Inspiração: azul + laranja (ajuste conforme tua logo) */
+  --primary: 59 130 246;   /* blue-500 */
+  --accent: 249 115 22;    /* orange-500 */
+  --danger: 239 68 68;     /* red-500 */
+}
+
+.dark {
+  /* Dark predominante */
+  --bg: 10 12 16;
+  --panel: 16 19 25;
+  --text: 234 237 243;
+  --muted: 152 160 174;
+  --border: 38 44 56;
+
+  --primary: 59 130 246;
+  --accent: 249 115 22;
+  --danger: 248 113 113;
+}
+
+* { box-sizing: border-box; }
+a { color: inherit; }

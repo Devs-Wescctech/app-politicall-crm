@@ -1,0 +1,82 @@
+generator client { provider = "prisma-client-js" }
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(AGENT)
+  leadScope LeadScope @default(OWN) // configurável: OWN ou ALL
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  leads     Lead[]   @relation("LeadOwner")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  AGENT
+}
+
+enum LeadScope {
+  OWN
+  ALL
+}
+
+model Stage {
+  id        String   @id @default(uuid())
+  name      String
+  order     Int
+  isClosed  Boolean  @default(false) // stage "Fechados"
+  createdAt DateTime @default(now())
+}
+
+model Lead {
+  id          String   @id @default(uuid())
+  name        String
+  phone       String?
+  email       String?
+  city        String?
+  source      String?
+  notes       String?
+
+  stageId     String
+  stage       Stage    @relation(fields: [stageId], references: [id])
+
+  ownerId     String?
+  owner       User?    @relation("LeadOwner", fields: [ownerId], references: [id])
+
+  valueCents  Int      @default(0)
+  status      LeadStatus @default(OPEN)
+
+  closedAt    DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sale        Sale?
+}
+
+enum LeadStatus {
+  OPEN
+  CLOSED
+  SOLD
+}
+
+model Sale {
+  id          String   @id @default(uuid())
+  leadId      String   @unique
+  lead        Lead     @relation(fields: [leadId], references: [id])
+
+  amountCents Int
+  planName    String?
+  paidAt      DateTime?
+  paymentRef  String?
+  createdAt   DateTime @default(now())
+}
