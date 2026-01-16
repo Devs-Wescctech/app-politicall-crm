@@ -19,12 +19,33 @@ export function createApp() {
   app.use(express.json({ limit: "1mb" }));
   app.use(morgan("combined"));
 
+  const allowedOrigins = env.CORS_ORIGIN
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
   app.use(
     cors({
-      origin: env.CORS_ORIGIN.split(",").map(s => s.trim()),
+      origin: (origin, cb) => {
+        // Requests sem Origin (curl, servidor-servidor) devem passar
+        if (!origin) return cb(null, true);
+
+        if (allowedOrigins.includes(origin)) return cb(null, true);
+
+        // Opcional: loga pra você ver qual origin está chegando
+        console.warn("CORS blocked origin:", origin);
+        return cb(new Error("Not allowed by CORS"));
+      },
       credentials: true,
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      allowedHeaders: ["Content-Type", "Authorization"],
+      optionsSuccessStatus: 204,
     })
   );
+
+  // garante preflight em qualquer rota
+  app.options("*", cors());
+
 
   app.use("/health", (_req, res) => res.json({ ok: true }));
 
