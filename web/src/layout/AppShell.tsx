@@ -8,7 +8,6 @@ import {
   LogOut,
   Sun,
   Moon,
-  Sparkles,
   Search,
 } from "lucide-react";
 import { cn } from "../lib/cn";
@@ -32,7 +31,8 @@ function pageTitle(pathname: string) {
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useAuth();
+  // Mantém os hooks (mesmo sem mostrar user no menu)
+  const { logout } = useAuth();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
 
@@ -48,38 +48,25 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex min-h-screen w-full">
-        {/* Sidebar FIXO (não scrolla junto) e ocupando toda área esquerda */}
+        {/* Sidebar FIXO */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-            {/* Brand / User (com logo) */}
-            <div className="px-1 pt-1 pb-3">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-white/5 border border-border/70 flex items-center justify-center overflow-hidden">
-                  {logoOk ? (
-                    <img
-                      src="/logo.png"
-                      alt="PoliticAll CRM"
-                      className="h-9 w-9 object-contain"
-                      onError={() => setLogoOk(false)}
-                    />
-                  ) : (
-                    <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                      <Sparkles className="text-primary" size={18} />
-                    </div>
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  {/* se você quiser remover o texto e ficar só a logo, apaga essas 2 linhas abaixo */}
-                  <div className="font-semibold leading-tight truncate">PoliticAll CRM</div>
-                  <div className="text-xs text-muted truncate">
-                    {user?.name} • {user?.role}
-                  </div>
-                </div>
-              </div>
+            {/* LOGO PRINCIPAL (sem texto / sem “caixa”) */}
+            <div className="px-1 pt-2 pb-4 flex items-center justify-center">
+              {logoOk ? (
+                <img
+                  src="/logo.png"
+                  alt="PoliticAll"
+                  className="h-16 w-auto object-contain"
+                  onError={() => setLogoOk(false)}
+                />
+              ) : (
+                // fallback discreto se o arquivo não existir
+                <div className="h-14 w-14 rounded-2xl bg-white/5 border border-border/70" />
+              )}
             </div>
 
-            {/* NAV (scroll interno se precisar) */}
+            {/* NAV */}
             <div className="flex-1 overflow-y-auto pr-1">
               <div className="px-2 pb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
                 Navegação
@@ -151,7 +138,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </aside>
 
-        {/* Main: precisa “abrir espaço” para sidebar fixa */}
+        {/* Main */}
         <main className="flex min-h-screen flex-1 flex-col md:ml-[320px]">
           {/* Topbar sticky */}
           <header className="sticky top-0 z-20 border-b border-border/60 bg-panel/50 backdrop-blur">
