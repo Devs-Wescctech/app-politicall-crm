@@ -8,6 +8,7 @@ import {
   LogOut,
   Sun,
   Moon,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "../lib/cn";
 import { useAuth } from "../auth/AuthContext";
