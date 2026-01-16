@@ -36,6 +36,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
 
+  const [logoOk, setLogoOk] = React.useState(true);
+
   return (
     <div className="min-h-screen bg-bg text-text">
       {/* Fundo sutil */}
@@ -46,16 +48,29 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex min-h-screen w-full">
-        {/* Sidebar FIXO (não scrolla junto) e ocupando toda área esquerda (sem “contorno/card”) */}
+        {/* Sidebar FIXO (não scrolla junto) e ocupando toda área esquerda */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-            {/* Brand / User */}
+            {/* Brand / User (com logo) */}
             <div className="px-1 pt-1 pb-3">
               <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                  <Sparkles className="text-primary" size={18} />
+                <div className="h-11 w-11 rounded-2xl bg-white/5 border border-border/70 flex items-center justify-center overflow-hidden">
+                  {logoOk ? (
+                    <img
+                      src="/logo.png"
+                      alt="PoliticAll CRM"
+                      className="h-9 w-9 object-contain"
+                      onError={() => setLogoOk(false)}
+                    />
+                  ) : (
+                    <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                      <Sparkles className="text-primary" size={18} />
+                    </div>
+                  )}
                 </div>
+
                 <div className="min-w-0 flex-1">
+                  {/* se você quiser remover o texto e ficar só a logo, apaga essas 2 linhas abaixo */}
                   <div className="font-semibold leading-tight truncate">PoliticAll CRM</div>
                   <div className="text-xs text-muted truncate">
                     {user?.name} • {user?.role}
