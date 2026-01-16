@@ -50,7 +50,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar FIXO */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-            {/* LOGO PRINCIPAL (sem “corte” por falta de respiro no PNG) */}
+            {/* LOGO PRINCIPAL */}
             <div className="px-1 pt-2 pb-4">
               <div className="h-[88px] w-full flex items-center justify-center overflow-hidden pt-3">
                 {logoOk ? (
@@ -72,10 +72,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
             {/* NAV */}
             <div className="flex-1 overflow-y-auto pr-1">
-              <div className="px-2 pb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-                Navegação
-              </div>
-
               <div className="space-y-1">
                 {nav.map((n) => {
                   const Icon = n.icon;
@@ -133,9 +129,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="ml-2">Tema</span>
                 </Button>
 
+                {/* Sair na cor padrão */}
                 <Button
                   variant="outline"
-                  className="flex-1 justify-center hover:bg-white/5"
+                  className="flex-1 justify-center"
                   onClick={logout}
                 >
                   <LogOut size={16} />
@@ -173,7 +170,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* Conteúdo */}
           <div className="flex-1 px-4 md:px-8 py-6">
             <div className="w-full max-w-[1250px]">{children}</div>
-          </div>
+            </div>
 
           <footer className="border-t border-border/60 bg-panel/30 px-4 md:px-8 py-4 text-xs text-muted">
             © {new Date().getFullYear()} PoliticAll CRM
