@@ -164,17 +164,26 @@ export default function Pipeline() {
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row md:items-end gap-3">
-        <div>
-          <div className="text-2xl font-semibold">Pipeline</div>
-          <div className="text-sm text-muted">Kanban • criar/editar/excluir • Fechados → Dar baixa</div>
-        </div>
-        <div className="flex-1" />
-        <div className="flex gap-2 w-full md:w-auto">
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
-          <Button variant="outline" onClick={load}>Filtrar</Button>
-          <Button onClick={openCreate}><Plus size={16} /> Novo</Button>
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="rounded-2xl border border-border bg-panel/60 p-4 md:p-5 shadow-soft">
+        <div className="flex flex-col gap-4 md:flex-row md:items-center">
+          <div className="min-w-0">
+            <div className="text-2xl font-semibold tracking-tight">Pipeline</div>
+            <div className="mt-1 text-sm text-muted">
+              Kanban de oportunidades • Arraste entre etapas • Fechados → Dar baixa
+            </div>
+          </div>
+
+          <div className="flex-1" />
+
+          <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
+            <div className="w-full md:w-[320px]">
+              <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
+            </div>
+            <Button variant="outline" onClick={load}>Filtrar</Button>
+            <Button onClick={openCreate}><Plus size={16} /> Novo lead</Button>
+          </div>
         </div>
       </div>
 
@@ -182,30 +191,37 @@ export default function Pipeline() {
 
       <div className="overflow-x-auto">
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-3 min-w-[900px]">
+          <div className="flex gap-4 min-w-[980px] pb-2">
             {stages.map((stage) => (
               <Droppable key={stage.id} droppableId={stage.id}>
                 {(provided) => (
                   <div className="w-[320px]" ref={provided.innerRef} {...provided.droppableProps}>
-                    <div className="sticky top-0 z-10 mb-2">
-                      <div className="rounded-2xl border border-border bg-panel px-4 py-3 shadow-soft">
-                        <div className="flex items-center justify-between">
-                          <div className="font-semibold">{stage.name}</div>
-                          <div className="text-xs text-muted">{filteredLeads[stage.id]?.length ?? 0}</div>
+                    <div className="rounded-2xl border border-border bg-panel/40 shadow-soft">
+                      {/* Column header */}
+                      <div className="sticky top-0 z-10 rounded-2xl border-b border-border bg-panel/70 px-4 py-3 backdrop-blur">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold">{stage.name}</div>
+                            {stage.isClosed && (
+                              <div className="mt-1 text-xs text-accent">Fechados: habilita “Dar baixa”</div>
+                            )}
+                          </div>
+                          <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
+                            {filteredLeads[stage.id]?.length ?? 0}
+                          </div>
                         </div>
-                        {stage.isClosed && <div className="text-xs text-accent mt-1">Fechados: habilita “Dar baixa”</div>}
                       </div>
-                    </div>
 
-                    <div className="space-y-2 pb-4">
+                      {/* Cards */}
+                      <div className="space-y-3 p-4">
                       {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
                         <Draggable key={lead.id} draggableId={lead.id} index={idx}>
                           {(p) => (
                             <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
-                              <Card className="p-4">
+                              <Card className="group p-4 bg-bg/40 hover:bg-bg/55 transition ring-1 ring-transparent hover:ring-border/60">
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="font-semibold">{lead.name}</div>
+                                    <div className="font-semibold leading-tight">{lead.name}</div>
                                     <div className="text-xs text-muted">
                                       {lead.city ? `${lead.city} • ` : ""}{lead.source ?? "Sem origem"}
                                     </div>
@@ -214,24 +230,26 @@ export default function Pipeline() {
                                     </div>
                                   </div>
                                   <div className="flex gap-1">
-                                    <button className="p-2 rounded-lg hover:bg-white/5" onClick={() => openEdit(lead)} title="Editar">
+                                    <button className="p-2 rounded-xl hover:bg-border/30" onClick={() => openEdit(lead)} title="Editar">
                                       <Pencil size={16} />
                                     </button>
-                                    <button className="p-2 rounded-lg hover:bg-white/5" onClick={() => deleteLead(lead.id)} title="Excluir">
+                                    <button className="p-2 rounded-xl hover:bg-border/30" onClick={() => deleteLead(lead.id)} title="Excluir">
                                       <Trash2 size={16} />
                                     </button>
                                   </div>
                                 </div>
 
                                 <div className="mt-3 flex items-center justify-between">
-                                  <div className="text-sm font-medium">{moneyBRLFromCents(lead.valueCents)}</div>
+                                  <div className="inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-sm font-semibold text-primary">
+                                    {moneyBRLFromCents(lead.valueCents)}
+                                  </div>
                                   {stage.isClosed && !lead.sale && (
                                     <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
                                       <BadgeCheck size={16} /> Dar baixa
                                     </Button>
                                   )}
                                   {lead.sale && (
-                                    <div className="text-xs text-accent">Baixado ✔</div>
+                                    <div className="text-xs font-semibold text-accent">Baixado ✔</div>
                                   )}
                                 </div>
                               </Card>
@@ -240,6 +258,7 @@ export default function Pipeline() {
                         </Draggable>
                       ))}
                       {provided.placeholder}
+                      </div>
                     </div>
                   </div>
                 )}
