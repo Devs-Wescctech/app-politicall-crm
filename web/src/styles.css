@@ -24,7 +24,8 @@
   --muted: 152 160 174;
   --border: 38 44 56;
 
-  --primary: 59 130 246;
+  /* Primária (dark): #10A294 */
+  --primary: 16 162 148;
   --accent: 249 115 22;
   --danger: 248 113 113;
 }
