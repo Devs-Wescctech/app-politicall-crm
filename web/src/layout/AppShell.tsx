@@ -31,7 +31,6 @@ function pageTitle(pathname: string) {
 }
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  // Mantém os hooks (mesmo sem mostrar user no menu)
   const { logout } = useAuth();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
@@ -51,23 +50,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar FIXO */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-{/* LOGO PRINCIPAL (com folga no topo pra não cortar) */}
-<div className="px-1 pt-2 pb-4">
-  <div className="h-[56px] w-full flex items-center justify-center overflow-hidden pt-2">
-    {logoOk ? (
-      <img
-        src="/logo.png"
-        alt="PoliticAll"
-        className="h-[38px] w-auto max-w-[220px] object-contain"
-        onError={() => setLogoOk(false)}
-      />
-    ) : (
-      <div className="h-[38px] w-[140px] rounded-xl bg-white/5 border border-border/70" />
-    )}
-  </div>
-</div>
-
-
+            {/* LOGO PRINCIPAL (sem cortar) */}
+            <div className="px-1 pt-2 pb-4">
+              <div className="h-[72px] w-full flex items-end justify-center overflow-hidden">
+                {logoOk ? (
+                  <img
+                    src="/logo.png"
+                    alt="PoliticAll"
+                    className="w-auto max-w-[240px] select-none"
+                    style={{
+                      height: 56,
+                      objectFit: "contain",
+                      objectPosition: "center bottom", // <- impede cortar em cima
+                      display: "block",
+                    }}
+                    onError={() => setLogoOk(false)}
+                  />
+                ) : (
+                  <div className="h-[56px] w-[180px] rounded-xl bg-white/5 border border-border/70" />
+                )}
+              </div>
+            </div>
 
             {/* NAV */}
             <div className="flex-1 overflow-y-auto pr-1">
@@ -132,7 +135,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="ml-2">Tema</span>
                 </Button>
 
-                <Button variant="danger" className="flex-1 justify-center" onClick={logout}>
+                {/* Sair com cor padrão do sistema (não vermelho) */}
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-center hover:bg-white/5"
+                  onClick={logout}
+                >
                   <LogOut size={16} />
                   <span className="ml-2">Sair</span>
                 </Button>
