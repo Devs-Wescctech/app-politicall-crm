@@ -169,7 +169,7 @@ export default function Pipeline() {
       <div className="rounded-2xl border border-border bg-panel/60 p-4 md:p-5 shadow-soft">
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           <div className="min-w-0">
-            <div className="text-2xl font-semibold tracking-tight">Pipeline</div>
+            <div className="text-2xl font-semibold tracking-tight">Pipeline TESTE 123</div>
             <div className="mt-1 text-sm text-muted">
               Kanban de oportunidades • Arraste entre etapas • Fechados → Dar baixa
             </div>
