@@ -51,20 +51,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar FIXO */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-            {/* LOGO PRINCIPAL (sem texto / sem “caixa”) */}
-            <div className="px-1 pt-2 pb-4 flex items-center justify-center">
-              {logoOk ? (
-                <img
-                  src="/logo.png"
-                  alt="PoliticAll"
-                  className="h-16 w-auto object-contain"
-                  onError={() => setLogoOk(false)}
-                />
-              ) : (
-                // fallback discreto se o arquivo não existir
-                <div className="h-14 w-14 rounded-2xl bg-white/5 border border-border/70" />
-              )}
-            </div>
+{/* LOGO PRINCIPAL (tamanho controlado, sem cortar) */}
+<div className="px-1 pt-2 pb-4">
+  <div className="h-[44px] w-full flex items-center justify-center overflow-hidden">
+    {logoOk ? (
+      <img
+        src="/logo.png"
+        alt="PoliticAll"
+        className="h-[40px] w-auto max-w-[220px] object-contain"
+        onError={() => setLogoOk(false)}
+      />
+    ) : (
+      <div className="h-[40px] w-[140px] rounded-xl bg-white/5 border border-border/70" />
+    )}
+  </div>
+</div>
+
 
             {/* NAV */}
             <div className="flex-1 overflow-y-auto pr-1">
