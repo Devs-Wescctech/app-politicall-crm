@@ -50,18 +50,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {/* Sidebar FIXO */}
         <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
           <div className="flex h-full flex-col p-4">
-            {/* LOGO PRINCIPAL (sem cortar) */}
+            {/* LOGO PRINCIPAL (sem “corte” por falta de respiro no PNG) */}
             <div className="px-1 pt-2 pb-4">
-              <div className="h-[72px] w-full flex items-end justify-center overflow-hidden">
+              <div className="h-[88px] w-full flex items-center justify-center overflow-hidden pt-3">
                 {logoOk ? (
                   <img
                     src="/logo.png"
                     alt="PoliticAll"
-                    className="w-auto max-w-[240px] select-none"
+                    className="w-auto max-w-[240px] select-none object-contain translate-y-[10px]"
                     style={{
                       height: 56,
-                      objectFit: "contain",
-                      objectPosition: "center bottom", // <- impede cortar em cima
                       display: "block",
                     }}
                     onError={() => setLogoOk(false)}
@@ -135,7 +133,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="ml-2">Tema</span>
                 </Button>
 
-                {/* Sair com cor padrão do sistema (não vermelho) */}
                 <Button
                   variant="outline"
                   className="flex-1 justify-center hover:bg-white/5"
