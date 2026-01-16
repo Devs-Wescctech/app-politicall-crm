@@ -7,6 +7,7 @@ import { Input } from "../components/Input";
 import { Modal } from "../components/Modal";
 import { Select } from "../components/Select";
 import { Plus, Trash2, Pencil, BadgeCheck } from "lucide-react";
+import { cn } from "../lib/cn";
 
 type Stage = { id: string; name: string; order: number; isClosed: boolean };
 type Lead = {
