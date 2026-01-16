@@ -38,113 +38,131 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg text-text">
-      {/* Fundo mais moderno (não quebra tokens) */}
+      {/* Fundo sutil */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_10%,rgba(16,162,148,.18),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(760px_420px_at_82%_18%,rgba(99,102,241,.10),transparent_55%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,.03),transparent_28%,rgba(0,0,0,.22))]" />
       </div>
 
-      <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
-        {/* Sidebar */}
-        <aside className="hidden md:block w-[320px] p-4">
-          {/* O segredo do “ocupar tudo”: altura calculada + flex-col */}
-          <div className="h-[calc(100vh-2rem)] rounded-3xl border border-border bg-panel/70 backdrop-blur shadow-soft overflow-hidden flex flex-col">
-            {/* Brand / User */}
-            <div className="p-5 border-b border-border/70">
-              <div className="flex items-center gap-3">
-                <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
-                  <Sparkles className="text-primary" size={18} />
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold leading-tight truncate">PoliticAll CRM</div>
-                  <div className="text-xs text-muted truncate">
-                    {user?.name} • {user?.role}
+      {/* APP FULL-WIDTH (sem mx-auto/max-w aqui) */}
+      <div className="flex min-h-screen w-full">
+        {/* Sidebar ANCORADO na esquerda */}
+        <aside className="hidden md:flex w-[320px] shrink-0 flex-col border-r border-border/70 bg-panel/60 backdrop-blur">
+          {/* Conteúdo do sidebar com padding interno */}
+          <div className="flex h-screen flex-col p-4">
+            {/* Brand */}
+            <div className="rounded-2xl border border-border bg-panel/70 shadow-soft overflow-hidden">
+              <div className="p-5 border-b border-border/70">
+                <div className="flex items-center gap-3">
+                  <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 flex items-center justify-center">
+                    <Sparkles className="text-primary" size={18} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold leading-tight truncate">
+                      PoliticAll CRM
+                    </div>
+                    <div className="text-xs text-muted truncate">
+                      {user?.name} • {user?.role}
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
 
-            {/* NAV (agora ocupa TODO o espaço) */}
-            <div className="p-3 flex-1 overflow-y-auto">
-              <div className="px-2 pb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
-                Navegação
-              </div>
+              {/* NAV ocupa o espaço */}
+              <div className="p-3">
+                <div className="px-2 pb-2 text-[11px] font-semibold tracking-wide text-muted uppercase">
+                  Navegação
+                </div>
 
-              <div className="space-y-1">
-                {nav.map((n) => {
-                  const Icon = n.icon;
-                  return (
-                    <NavLink key={n.to} to={n.to}>
-                      {({ isActive }) => (
-                        <div
-                          className={cn(
-                            "group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition",
-                            "hover:bg-white/5",
-                            isActive
-                              ? "bg-white/5 ring-1 ring-border/60 shadow-soft text-text"
-                              : "text-muted"
-                          )}
-                        >
-                          <span
+                <div className="space-y-1">
+                  {nav.map((n) => {
+                    const Icon = n.icon;
+                    return (
+                      <NavLink key={n.to} to={n.to}>
+                        {({ isActive }) => (
+                          <div
                             className={cn(
-                              "grid place-items-center h-9 w-9 rounded-2xl bg-white/5 border transition",
+                              "group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition",
+                              "hover:bg-white/5",
                               isActive
-                                ? "border-border"
-                                : "border-border/70 group-hover:border-border"
+                                ? "bg-white/5 ring-1 ring-border/60 shadow-soft text-text"
+                                : "text-muted"
                             )}
                           >
-                            <Icon
-                              size={18}
+                            <span
                               className={cn(
-                                isActive ? "text-text" : "text-muted group-hover:text-text"
+                                "grid place-items-center h-9 w-9 rounded-2xl bg-white/5 border transition",
+                                isActive
+                                  ? "border-border"
+                                  : "border-border/70 group-hover:border-border"
+                              )}
+                            >
+                              <Icon
+                                size={18}
+                                className={cn(
+                                  isActive
+                                    ? "text-text"
+                                    : "text-muted group-hover:text-text"
+                                )}
+                              />
+                            </span>
+
+                            <span className="font-medium">{n.label}</span>
+
+                            <span
+                              className={cn(
+                                "ml-auto h-2.5 w-2.5 rounded-full transition",
+                                isActive
+                                  ? "bg-primary"
+                                  : "bg-transparent border border-border/70 group-hover:border-border"
                               )}
                             />
-                          </span>
-
-                          <span className="font-medium">{n.label}</span>
-
-                          <span
-                            className={cn(
-                              "ml-auto h-2.5 w-2.5 rounded-full transition",
-                              isActive
-                                ? "bg-primary"
-                                : "bg-transparent border border-border/70 group-hover:border-border"
-                            )}
-                          />
-                        </div>
-                      )}
-                    </NavLink>
-                  );
-                })}
+                          </div>
+                        )}
+                      </NavLink>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* Footer FIXO no rodapé */}
-            <div className="p-4 border-t border-border/70">
+            {/* Spacer para empurrar ações para o rodapé */}
+            <div className="flex-1" />
+
+            {/* Ações no rodapé (fixas visualmente) */}
+            <div className="mt-4 rounded-2xl border border-border bg-panel/70 shadow-soft p-3">
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 justify-center" onClick={toggle}>
+                <Button
+                  variant="outline"
+                  className="flex-1 justify-center"
+                  onClick={toggle}
+                >
                   {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
                   <span className="ml-2">Tema</span>
                 </Button>
 
-                <Button variant="danger" className="flex-1 justify-center" onClick={logout}>
+                <Button
+                  variant="danger"
+                  className="flex-1 justify-center"
+                  onClick={logout}
+                >
                   <LogOut size={16} />
                   <span className="ml-2">Sair</span>
                 </Button>
               </div>
 
               <div className="mt-3 text-xs text-muted">
-                Primária (dark): <span className="text-primary font-semibold">#10A294</span>
+                Primária (dark):{" "}
+                <span className="text-primary font-semibold">#10A294</span>
               </div>
             </div>
           </div>
         </aside>
 
-        {/* Content */}
+        {/* Main */}
         <main className="flex min-h-screen flex-1 flex-col">
-          {/* Topbar mais profissional (sticky) */}
+          {/* Topbar */}
           <header className="sticky top-0 z-20 border-b border-border/60 bg-panel/50 backdrop-blur">
             <div className="flex items-center gap-3 px-4 md:px-8 py-4">
               <div className="min-w-0 flex-1">
@@ -154,35 +172,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </div>
               </div>
 
-              {/* Busca (só desktop) */}
               <div className="hidden md:flex items-center gap-2">
                 <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-white/5 px-3 h-10">
                   <Search size={16} className="text-muted" />
                   <input
-                    className="w-[280px] bg-transparent text-sm outline-none placeholder:text-muted/70"
+                    className="w-[320px] bg-transparent text-sm outline-none placeholder:text-muted/70"
                     placeholder="Buscar lead, cidade, telefone..."
                   />
                 </div>
               </div>
-
-              {/* Ações rápidas no mobile */}
-              <div className="md:hidden flex items-center gap-2">
-                <Button variant="outline" onClick={toggle}>
-                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-                </Button>
-                <Button variant="danger" onClick={logout}>
-                  <LogOut size={16} />
-                </Button>
-              </div>
             </div>
           </header>
 
-          {/* Conteúdo com espaçamento + container */}
+          {/* Conteúdo com max-width só no content (opcional e bonito) */}
           <div className="flex-1 px-4 md:px-8 py-6">
-            <div className="mx-auto w-full">{children}</div>
+            <div className="w-full max-w-[1250px]">{children}</div>
           </div>
 
-          {/* Footer discreto */}
           <footer className="border-t border-border/60 bg-panel/30 px-4 md:px-8 py-4 text-xs text-muted">
             © {new Date().getFullYear()} PoliticAll CRM
           </footer>
