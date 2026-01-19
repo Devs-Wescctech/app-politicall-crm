@@ -6,7 +6,7 @@ import { Button } from "../components/Button";
 import { Input } from "../components/Input";
 import { Modal } from "../components/Modal";
 import { Select } from "../components/Select";
-import { Plus, Trash2, Pencil, BadgeCheck } from "lucide-react";
+import { Plus, Trash2, Pencil, BadgeCheck, CheckCircle2, Filter } from "lucide-react";
 import { cn } from "../lib/cn";
 
 type Stage = { id: string; name: string; order: number; isClosed: boolean };
@@ -39,6 +39,7 @@ export default function Pipeline() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [q, setQ] = useState("");
+  const [ownerFilter, setOwnerFilter] = useState<string>(""); // ✅ filtro por responsável
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -140,17 +141,52 @@ export default function Pipeline() {
     window.addEventListener("pointerup", onUp, { passive: false });
   }
 
-  // ===== Data =====
+  // ===== Data (filtros locais) =====
+  // ✅ regras novas:
+  //  - lead BAIXADO (sale != null) NÃO aparece no kanban
+  //  - filtro por responsável (ownerFilter) filtra quem é o responsável
+  //  - busca (q) continua funcionando como antes
+  const leadsVisible = useMemo(() => {
+    const txt = q.trim().toLowerCase();
+    return leads.filter((l) => {
+      // 2) baixado não aparece mais
+      if (l.sale) return false;
+
+      // 3) filtro por responsável (se setado)
+      if (ownerFilter) {
+        const oid = l.owner?.id ?? "";
+        if (oid !== ownerFilter) return false;
+      }
+
+      // busca simples (nome/cidade/origem/resp)
+      if (!txt) return true;
+
+      const hay = [
+        l.name ?? "",
+        l.city ?? "",
+        l.source ?? "",
+        l.owner?.name ?? "",
+        l.email ?? "",
+        l.phone ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(txt);
+    });
+  }, [leads, q, ownerFilter]);
+
   const filteredLeads = useMemo(() => {
     const byStage: Record<string, Lead[]> = {};
     for (const s of stages) byStage[s.id] = [];
-    for (const l of leads) byStage[l.stageId]?.push(l);
+    for (const l of leadsVisible) byStage[l.stageId]?.push(l);
     return byStage;
-  }, [stages, leads]);
+  }, [stages, leadsVisible]);
 
   async function load() {
     setLoading(true);
     try {
+      // Mantém exatamente como estava (não depende de API ter filtro por owner)
       const [s, l] = await Promise.all([
         api<{ stages: Stage[] }>("/stages"),
         api<{ leads: Lead[] }>(`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`),
@@ -240,6 +276,7 @@ export default function Pipeline() {
       body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
     });
 
+    // ✅ some do kanban após dar baixa (porque sale passa a existir)
     await load();
   }
 
@@ -250,7 +287,7 @@ export default function Pipeline() {
 
     const stageId = destination.droppableId;
 
-    // otimista
+    // otimista (mantém)
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
@@ -270,9 +307,7 @@ export default function Pipeline() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           <div className="min-w-0">
             <div className="text-2xl font-semibold tracking-tight">Pipeline</div>
-            <div className="mt-1 text-sm text-muted">
-              Kanban de oportunidades • Arraste entre etapas • Fechados → Dar baixa
-            </div>
+            <div className="mt-1 text-sm text-muted">Kanban de oportunidades • Arraste entre etapas</div>
           </div>
 
           <div className="flex-1" />
@@ -281,9 +316,23 @@ export default function Pipeline() {
             <div className="w-full md:w-[320px]">
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
             </div>
+
+            {/* ✅ filtro por responsável */}
+            <div className="w-full md:w-[260px]">
+              <Select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
+                <option value="">Todos responsáveis</option>
+                {users.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} ({u.role})
+                  </option>
+                ))}
+              </Select>
+            </div>
+
             <Button variant="outline" onClick={load}>
-              Filtrar
+              <Filter size={16} /> Filtrar
             </Button>
+
             <Button onClick={openCreate}>
               <Plus size={16} /> Novo lead
             </Button>
@@ -294,22 +343,12 @@ export default function Pipeline() {
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
       {/* ✅ Pan surface: pega clique/drag em qualquer vazio dessa área e move o scroll do board */}
-      <div
-        ref={panSurfaceRef}
-        onPointerDownCapture={startPan}
-        className={cn(
-          "flex-1 min-h-0",
-          "cursor-grab"
-        )}
-      >
+      <div ref={panSurfaceRef} onPointerDownCapture={startPan} className={cn("flex-1 min-h-0", "cursor-grab")}>
         {/* BOARD (scroll horizontal real) */}
         <div
           ref={boardRef}
           onWheel={onWheelBoard}
-          className={cn(
-            "h-full min-h-[520px] pb-4",
-            "overflow-x-auto no-scrollbar scroll-smooth select-none"
-          )}
+          className={cn("h-full min-h-[520px] pb-4", "overflow-x-auto no-scrollbar scroll-smooth select-none")}
         >
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex gap-4 min-w-[1100px] h-full items-stretch">
@@ -328,9 +367,7 @@ export default function Pipeline() {
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="truncate font-semibold">{stage.name}</div>
-                              {stage.isClosed && (
-                                <div className="mt-1 text-xs text-accent">Fechados: habilita “Dar baixa”</div>
-                              )}
+                              {/* 4) removido texto dos fechados */}
                             </div>
                             <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
                               {filteredLeads[stage.id]?.length ?? 0}
@@ -382,13 +419,22 @@ export default function Pipeline() {
                                             {moneyBRLFromCents(lead.valueCents)}
                                           </div>
 
+                                          {/* 1) quando baixado: layout igual (badge) + ícone (sem texto) */}
+                                          {/* OBS: lead baixado não aparece no kanban (regra 2), mas deixo pronto caso queira permitir "mostrar baixados" no futuro */}
+                                          {lead.sale && (
+                                            <span
+                                              className="inline-flex items-center justify-center rounded-full bg-primary/15 px-3 py-1 text-sm font-semibold text-primary"
+                                              title="Baixado"
+                                            >
+                                              <CheckCircle2 size={16} />
+                                            </span>
+                                          )}
+
+                                          {/* Dar baixa continua aparecendo só em etapa fechada e quando NÃO está baixado */}
                                           {stage.isClosed && !lead.sale && (
                                             <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
                                               <BadgeCheck size={16} /> Dar baixa
                                             </Button>
-                                          )}
-                                          {lead.sale && (
-                                            <div className="text-xs font-semibold text-accent">Baixado ✔</div>
                                           )}
                                         </div>
                                       </Card>
