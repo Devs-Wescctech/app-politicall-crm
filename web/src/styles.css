@@ -37,3 +37,6 @@ a { color: inherit; }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* opcional: deixa a mãozinha visível quando segurar SPACE */
+.cursor-grab { cursor: grab !important; }
+.cursor-grabbing { cursor: grabbing !important; }
