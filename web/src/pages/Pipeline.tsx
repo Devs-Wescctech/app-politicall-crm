@@ -25,6 +25,7 @@ type Lead = {
   owner?: { id: string; name: string } | null;
   sale?: { id: string } | null;
 };
+
 type UserRow = {
   id: string;
   name: string;
@@ -56,53 +57,23 @@ export default function Pipeline() {
     ownerId: "",
   });
 
-  // ========= BOARD SCROLL =========
+  // ===== Board horizontal scroll (wheel + click&drag no vazio) =====
   const boardRef = React.useRef<HTMLDivElement | null>(null);
 
-  // Wheel: vertical -> horizontal
   function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
+    // trackpad horizontal: mantém
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+
+    // vertical vira horizontal
     e.preventDefault();
     const el = boardRef.current;
     if (!el) return;
     el.scrollLeft += e.deltaY;
   }
 
-  // SPACE + DRAG (modo pan) - robusto, não conflita com DnD
-  const spaceDownRef = React.useRef(false);
   const isPanningRef = React.useRef(false);
   const panStartXRef = React.useRef(0);
   const panScrollLeftRef = React.useRef(0);
-
-  // escuta SPACE global
-  useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        // evita scroll da página quando apertar space
-        e.preventDefault();
-        spaceDownRef.current = true;
-        const el = boardRef.current;
-        if (el) el.classList.add("cursor-grab");
-      }
-    };
-    const up = (e: KeyboardEvent) => {
-      if (e.code === "Space") {
-        e.preventDefault();
-        spaceDownRef.current = false;
-        stopPan();
-        const el = boardRef.current;
-        if (el) el.classList.remove("cursor-grab", "cursor-grabbing");
-      }
-    };
-
-    window.addEventListener("keydown", down, { passive: false });
-    window.addEventListener("keyup", up, { passive: false });
-
-    return () => {
-      window.removeEventListener("keydown", down as any);
-      window.removeEventListener("keyup", up as any);
-    };
-  }, []);
 
   function stopPan() {
     isPanningRef.current = false;
@@ -110,22 +81,27 @@ export default function Pipeline() {
     if (el) el.classList.remove("cursor-grabbing");
   }
 
-  function startPan(e: React.MouseEvent<HTMLDivElement>) {
-    // só inicia pan se SPACE estiver pressionado
-    if (!spaceDownRef.current) return;
+  function startPan(e: React.MouseEvent) {
     if (e.button !== 0) return;
 
     const el = boardRef.current;
     if (!el) return;
 
-    // não iniciar pan em inputs/botões (pra não atrapalhar)
     const target = e.target as HTMLElement;
+
+    // Não iniciar pan em elementos interativos
     if (target.closest("button, a, input, textarea, select, option, label")) return;
 
+    // Não iniciar pan em cima de card (pra não brigar com DnD)
+    if (target.closest("[data-pan-block='true']")) return;
+
+    // aqui é vazio/coluna/header: pan permitido
     isPanningRef.current = true;
     panStartXRef.current = e.clientX;
     panScrollLeftRef.current = el.scrollLeft;
+
     el.classList.add("cursor-grabbing");
+    e.preventDefault();
 
     const onMove = (ev: MouseEvent) => {
       if (!isPanningRef.current) return;
@@ -140,11 +116,11 @@ export default function Pipeline() {
       stopPan();
     };
 
-    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mousemove", onMove, { passive: false });
     window.addEventListener("mouseup", onUp);
   }
 
-  // ========= DATA =========
+  // ===== Data =====
   const filteredLeads = useMemo(() => {
     const byStage: Record<string, Lead[]> = {};
     for (const s of stages) byStage[s.id] = [];
@@ -159,6 +135,7 @@ export default function Pipeline() {
         api<{ stages: Stage[] }>("/stages"),
         api<{ leads: Lead[] }>(`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`),
       ]);
+
       setStages(s.stages);
       setLeads(l.leads);
 
@@ -216,11 +193,13 @@ export default function Pipeline() {
 
   async function saveLead() {
     if (!form.name?.trim()) return;
+
     if (editing) {
       await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(form) });
     } else {
       await api(`/leads`, { method: "POST", body: JSON.stringify(form) });
     }
+
     setOpenModal(false);
     await load();
   }
@@ -235,10 +214,12 @@ export default function Pipeline() {
     const amount = prompt("Valor da venda (R$):", ((lead.valueCents ?? 0) / 100).toString());
     if (amount == null) return;
     const cents = Math.max(0, Math.round(Number(amount.replace(",", ".")) * 100));
+
     await api(`/leads/${lead.id}/mark-sold`, {
       method: "POST",
       body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
     });
+
     await load();
   }
 
@@ -249,13 +230,11 @@ export default function Pipeline() {
 
     const stageId = destination.droppableId;
 
+    // otimista
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
-      await api(`/leads/${draggableId}/move`, {
-        method: "POST",
-        body: JSON.stringify({ stageId }),
-      });
+      await api(`/leads/${draggableId}/move`, { method: "POST", body: JSON.stringify({ stageId }) });
       await load();
     } catch (e: any) {
       alert(e.message);
@@ -266,22 +245,19 @@ export default function Pipeline() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="rounded-2xl border border-border bg-panel/60 p-5 md:p-6 shadow-soft">
+      <div className="rounded-2xl border border-border bg-panel/60 p-4 md:p-5 shadow-soft">
         <div className="flex flex-col gap-4 md:flex-row md:items-center">
           <div className="min-w-0">
             <div className="text-2xl font-semibold tracking-tight">Pipeline</div>
             <div className="mt-1 text-sm text-muted">
-              Kanban de oportunidades • Arraste entre etapas • Etapas fechadas → Dar baixa
-            </div>
-            <div className="mt-2 text-xs text-muted">
-              Dica: segure <b>SPACE</b> e arraste para navegar pro lado.
+              Kanban de oportunidades • Arraste entre etapas • Fechados → Dar baixa
             </div>
           </div>
 
           <div className="flex-1" />
 
           <div className="flex w-full flex-col gap-2 md:w-auto md:flex-row md:items-center">
-            <div className="w-full md:w-[360px]">
+            <div className="w-full md:w-[320px]">
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
             </div>
             <Button variant="outline" onClick={load}>
@@ -296,116 +272,117 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* Board */}
+      {/* BOARD ESTICADO (área vazia real para pan) */}
       <div
         ref={boardRef}
         onWheel={onWheelBoard}
         onMouseDown={startPan}
-        className="overflow-x-auto no-scrollbar scroll-smooth pb-3 select-none"
+        className={cn(
+          "overflow-x-auto no-scrollbar scroll-smooth select-none",
+          "cursor-grab",
+          // garante área vazia clicável dentro do board
+          "h-[calc(100vh-330px)] min-h-[520px] pb-4"
+        )}
       >
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-5 min-w-[1180px]">
+          <div className="flex gap-4 min-w-[1100px] h-full items-stretch">
             {stages.map((stage) => (
               <Droppable key={stage.id} droppableId={stage.id}>
                 {(provided, snapshot) => (
-                  <div className="w-[360px] shrink-0" ref={provided.innerRef} {...provided.droppableProps}>
+                  <div className="w-[340px] shrink-0 h-full" ref={provided.innerRef} {...provided.droppableProps}>
                     <div
                       className={cn(
-                        "rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden",
+                        "h-full rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden flex flex-col",
                         snapshot.isDraggingOver && "ring-2 ring-primary/35"
                       )}
                     >
-                      <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-5 py-4 backdrop-blur">
+                      {/* Column header (esticado como você gostou) */}
+                      <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-4 py-3 backdrop-blur">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <div className="truncate font-semibold text-[15px]">{stage.name}</div>
+                            <div className="truncate font-semibold">{stage.name}</div>
                             {stage.isClosed && (
-                              <div className="mt-1 text-xs text-accent">Etapa fechada • habilita “Dar baixa”</div>
+                              <div className="mt-1 text-xs text-accent">Fechados: habilita “Dar baixa”</div>
                             )}
                           </div>
-                          <div className="shrink-0 inline-flex items-center rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
+                          <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
                             {filteredLeads[stage.id]?.length ?? 0}
                           </div>
                         </div>
                       </div>
 
-                      <div className="space-y-3 p-5">
-                        {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
-                          <Draggable key={lead.id} draggableId={lead.id} index={idx}>
-                            {(p, snap) => (
-                              <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
-                                <Card
-                                  className={cn(
-                                    "group p-5 bg-bg/40 hover:bg-bg/55 transition",
-                                    "ring-1 ring-transparent hover:ring-border/60",
-                                    snap.isDragging && "ring-2 ring-primary/35 shadow-soft"
-                                  )}
-                                >
-                                  <div className="flex items-start justify-between gap-2">
-                                    <div className="min-w-0">
-                                      <div className="font-semibold leading-tight truncate text-[15px]">{lead.name}</div>
-                                      <div className="text-xs text-muted mt-1">
-                                        {lead.city ? `${lead.city} • ` : ""}
-                                        {lead.source ?? "Sem origem"}
+                      {/* Cards (scroll vertical interno) */}
+                      <div className="flex-1 overflow-y-auto">
+                        <div className="space-y-3 p-4 min-h-full">
+                          {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
+                            <Draggable key={lead.id} draggableId={lead.id} index={idx}>
+                              {(p) => (
+                                <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
+                                  {/* BLOQUEIA PAN EM CIMA DO CARD */}
+                                  <div data-pan-block="true">
+                                    <Card className="group p-4 bg-bg/40 hover:bg-bg/55 transition ring-1 ring-transparent hover:ring-border/60">
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="font-semibold leading-tight truncate">{lead.name}</div>
+                                          <div className="text-xs text-muted">
+                                            {lead.city ? `${lead.city} • ` : ""}
+                                            {lead.source ?? "Sem origem"}
+                                          </div>
+                                          <div className="text-xs text-muted mt-1 truncate">
+                                            {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
+                                          </div>
+                                        </div>
+                                        <div className="flex gap-1">
+                                          <button
+                                            className="p-2 rounded-xl hover:bg-border/30"
+                                            onClick={() => openEdit(lead)}
+                                            title="Editar"
+                                          >
+                                            <Pencil size={16} />
+                                          </button>
+                                          <button
+                                            className="p-2 rounded-xl hover:bg-border/30"
+                                            onClick={() => deleteLead(lead.id)}
+                                            title="Excluir"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
                                       </div>
-                                      <div className="text-xs text-muted mt-1 truncate">
-                                        {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
+
+                                      <div className="mt-3 flex items-center justify-between gap-2">
+                                        <div className="inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-sm font-semibold text-primary">
+                                          {moneyBRLFromCents(lead.valueCents)}
+                                        </div>
+
+                                        {stage.isClosed && !lead.sale && (
+                                          <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
+                                            <BadgeCheck size={16} /> Dar baixa
+                                          </Button>
+                                        )}
+                                        {lead.sale && <div className="text-xs font-semibold text-accent">Baixado ✔</div>}
                                       </div>
-                                    </div>
-
-                                    <div className="flex gap-1 opacity-90">
-                                      <button
-                                        className="p-2 rounded-xl hover:bg-border/30 transition"
-                                        onClick={() => openEdit(lead)}
-                                        title="Editar"
-                                      >
-                                        <Pencil size={16} />
-                                      </button>
-                                      <button
-                                        className="p-2 rounded-xl hover:bg-border/30 transition"
-                                        onClick={() => deleteLead(lead.id)}
-                                        title="Excluir"
-                                      >
-                                        <Trash2 size={16} />
-                                      </button>
-                                    </div>
+                                    </Card>
                                   </div>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
 
-                                  <div className="mt-4 flex items-center justify-between gap-3">
-                                    <div className="inline-flex items-center rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-semibold text-primary">
-                                      {moneyBRLFromCents(lead.valueCents)}
-                                    </div>
+                          {provided.placeholder}
 
-                                    <div className="flex items-center gap-2">
-                                      {stage.isClosed && !lead.sale && (
-                                        <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
-                                          <BadgeCheck size={16} /> Dar baixa
-                                        </Button>
-                                      )}
-                                      {lead.sale && (
-                                        <div className="text-xs font-semibold text-accent whitespace-nowrap">Baixado ✔</div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </Card>
-                              </div>
-                            )}
-                          </Draggable>
-                        ))}
-
-                        {provided.placeholder}
-
-                        {(filteredLeads[stage.id] ?? []).length === 0 && (
-                          <div className="rounded-2xl border border-border/70 bg-white/5 p-4 text-sm text-muted">
-                            Sem leads nesta etapa.
-                          </div>
-                        )}
+                          {/* Espaço “vazio” REAL dentro da coluna (clicável pro pan) */}
+                          <div className="h-24" />
+                        </div>
                       </div>
                     </div>
                   </div>
                 )}
               </Droppable>
             ))}
+
+            {/* margem final */}
+            <div className="w-4 shrink-0" />
           </div>
         </DragDropContext>
       </div>
@@ -417,27 +394,22 @@ export default function Pipeline() {
             <div className="text-xs text-muted mb-1">Nome</div>
             <Input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} />
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Telefone</div>
             <Input value={form.phone} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Email</div>
             <Input value={form.email} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Cidade</div>
             <Input value={form.city} onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))} />
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Origem</div>
             <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Valor (centavos)</div>
             <Input
@@ -447,7 +419,6 @@ export default function Pipeline() {
             />
             <div className="text-xs text-muted mt-1">Dica: 10000 = R$ 100,00</div>
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Stage</div>
             <Select value={form.stageId} onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}>
@@ -458,7 +429,6 @@ export default function Pipeline() {
               ))}
             </Select>
           </div>
-
           <div>
             <div className="text-xs text-muted mb-1">Responsável (se permitido)</div>
             <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
@@ -471,11 +441,10 @@ export default function Pipeline() {
             </Select>
             <div className="text-xs text-muted mt-1">AGENT sempre cria/edita como ele mesmo.</div>
           </div>
-
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Notas</div>
             <textarea
-              className="w-full min-h-[100px] rounded-xl border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full min-h-[90px] rounded-xl border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               value={form.notes}
               onChange={(e) => setForm((f: any) => ({ ...f, notes: e.target.value }))}
             />
