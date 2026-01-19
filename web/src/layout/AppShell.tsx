@@ -46,136 +46,134 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,.03),transparent_28%,rgba(0,0,0,.22))]" />
       </div>
 
-      <div className="flex min-h-screen w-full">
-        {/* Sidebar FIXO */}
-        <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
-          <div className="flex h-full flex-col p-4">
-            {/* LOGO PRINCIPAL */}
-            <div className="px-1 pt-2 pb-4">
-              <div className="h-[88px] w-full flex items-center justify-center overflow-hidden pt-3">
-                {logoOk ? (
-                  <img
-                    src="/logo.png"
-                    alt="PoliticAll"
-                    className="w-auto max-w-[240px] select-none object-contain translate-y-[10px]"
-                    style={{
-                      height: 56,
-                      display: "block",
-                    }}
-                    onError={() => setLogoOk(false)}
-                  />
-                ) : (
-                  <div className="h-[56px] w-[180px] rounded-xl bg-white/5 border border-border/70" />
-                )}
+      {/* ✅ importante: flex-col + min-h-0 pra filhos poderem “encolher” e scrollar certo */}
+      <div className="flex min-h-screen w-full flex-col">
+        <div className="flex min-h-0 flex-1 w-full">
+          {/* Sidebar FIXO */}
+          <aside className="hidden md:block fixed left-0 top-0 h-screen w-[320px] border-r border-border/70 bg-panel/60 backdrop-blur z-30">
+            <div className="flex h-full flex-col p-4">
+              {/* LOGO PRINCIPAL */}
+              <div className="px-1 pt-2 pb-4">
+                <div className="h-[88px] w-full flex items-center justify-center overflow-hidden pt-3">
+                  {logoOk ? (
+                    <img
+                      src="/logo.png"
+                      alt="PoliticAll"
+                      className="w-auto max-w-[240px] select-none object-contain translate-y-[10px]"
+                      style={{
+                        height: 56,
+                        display: "block",
+                      }}
+                      onError={() => setLogoOk(false)}
+                    />
+                  ) : (
+                    <div className="h-[56px] w-[180px] rounded-xl bg-white/5 border border-border/70" />
+                  )}
+                </div>
               </div>
-            </div>
 
-            {/* NAV */}
-            <div className="flex-1 overflow-y-auto pr-1">
-              <div className="space-y-1">
-                {nav.map((n) => {
-                  const Icon = n.icon;
-                  return (
-                    <NavLink key={n.to} to={n.to}>
-                      {({ isActive }) => (
-                        <div
-                          className={cn(
-                            "group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition",
-                            "hover:bg-white/5",
-                            isActive
-                              ? "bg-white/5 ring-1 ring-border/60 shadow-soft text-text"
-                              : "text-muted"
-                          )}
-                        >
-                          <span
+              {/* NAV */}
+              <div className="flex-1 overflow-y-auto pr-1">
+                <div className="space-y-1">
+                  {nav.map((n) => {
+                    const Icon = n.icon;
+                    return (
+                      <NavLink key={n.to} to={n.to}>
+                        {({ isActive }) => (
+                          <div
                             className={cn(
-                              "grid place-items-center h-9 w-9 rounded-2xl bg-white/5 border transition",
+                              "group flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm transition",
+                              "hover:bg-white/5",
                               isActive
-                                ? "border-border"
-                                : "border-border/70 group-hover:border-border"
+                                ? "bg-white/5 ring-1 ring-border/60 shadow-soft text-text"
+                                : "text-muted"
                             )}
                           >
-                            <Icon
-                              size={18}
+                            <span
                               className={cn(
-                                isActive ? "text-text" : "text-muted group-hover:text-text"
+                                "grid place-items-center h-9 w-9 rounded-2xl bg-white/5 border transition",
+                                isActive
+                                  ? "border-border"
+                                  : "border-border/70 group-hover:border-border"
+                              )}
+                            >
+                              <Icon
+                                size={18}
+                                className={cn(isActive ? "text-text" : "text-muted group-hover:text-text")}
+                              />
+                            </span>
+
+                            <span className="font-medium">{n.label}</span>
+
+                            <span
+                              className={cn(
+                                "ml-auto h-2.5 w-2.5 rounded-full transition",
+                                isActive
+                                  ? "bg-primary"
+                                  : "bg-transparent border border-border/70 group-hover:border-border"
                               )}
                             />
-                          </span>
-
-                          <span className="font-medium">{n.label}</span>
-
-                          <span
-                            className={cn(
-                              "ml-auto h-2.5 w-2.5 rounded-full transition",
-                              isActive
-                                ? "bg-primary"
-                                : "bg-transparent border border-border/70 group-hover:border-border"
-                            )}
-                          />
-                        </div>
-                      )}
-                    </NavLink>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Ações fixas no rodapé */}
-            <div className="pt-4">
-              <div className="flex gap-2">
-                <Button variant="outline" className="flex-1 justify-center" onClick={toggle}>
-                  {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-                  <span className="ml-2">Tema</span>
-                </Button>
-
-                {/* Sair na cor padrão */}
-                <Button
-                  variant="outline"
-                  className="flex-1 justify-center"
-                  onClick={logout}
-                >
-                  <LogOut size={16} />
-                  <span className="ml-2">Sair</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* Main */}
-        <main className="flex min-h-screen flex-1 flex-col md:ml-[320px]">
-          {/* Topbar sticky */}
-          <header className="sticky top-0 z-20 border-b border-border/60 bg-panel/50 backdrop-blur">
-            <div className="flex items-center gap-3 px-4 md:px-8 py-4">
-              <div className="min-w-0 flex-1">
-                <div className="text-xs text-muted">KPI, gráficos e filtros</div>
-                <div className="text-lg font-semibold tracking-tight truncate">
-                  {pageTitle(pathname)}
+                          </div>
+                        )}
+                      </NavLink>
+                    );
+                  })}
                 </div>
               </div>
 
-              <div className="hidden md:flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-white/5 px-3 h-10">
-                  <Search size={16} className="text-muted" />
-                  <input
-                    className="w-[320px] bg-transparent text-sm outline-none placeholder:text-muted/70"
-                    placeholder="Buscar lead, cidade, telefone..."
-                  />
+              {/* Ações fixas no rodapé */}
+              <div className="pt-4">
+                <div className="flex gap-2">
+                  <Button variant="outline" className="flex-1 justify-center" onClick={toggle}>
+                    {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+                    <span className="ml-2">Tema</span>
+                  </Button>
+
+                  {/* Sair na cor padrão */}
+                  <Button variant="outline" className="flex-1 justify-center" onClick={logout}>
+                    <LogOut size={16} />
+                    <span className="ml-2">Sair</span>
+                  </Button>
                 </div>
               </div>
             </div>
-          </header>
+          </aside>
 
-          {/* Conteúdo */}
-          <div className="flex-1 px-4 md:px-8 py-6">
-            <div className="w-full">{children}</div>
+          {/* ✅ Main: min-h-0 + overflow-hidden pra página interna (Pipeline) conseguir usar h-full/min-h-0 */}
+          <main className="flex min-h-0 flex-1 flex-col md:ml-[320px] overflow-hidden">
+            {/* Topbar sticky */}
+            <header className="sticky top-0 z-20 border-b border-border/60 bg-panel/50 backdrop-blur">
+              <div className="flex items-center gap-3 px-4 md:px-8 py-4">
+                <div className="min-w-0 flex-1">
+                  <div className="text-xs text-muted">KPI, gráficos e filtros</div>
+                  <div className="text-lg font-semibold tracking-tight truncate">
+                    {pageTitle(pathname)}
+                  </div>
+                </div>
+
+                <div className="hidden md:flex items-center gap-2">
+                  <div className="flex items-center gap-2 rounded-2xl border border-border/70 bg-white/5 px-3 h-10">
+                    <Search size={16} className="text-muted" />
+                    <input
+                      className="w-[320px] bg-transparent text-sm outline-none placeholder:text-muted/70"
+                      placeholder="Buscar lead, cidade, telefone..."
+                    />
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            {/* ✅ Conteúdo: flex-1 min-h-0 e overflow-hidden (Pipeline controla seu próprio scroll/pan) */}
+            <div className="flex-1 min-h-0 overflow-hidden px-4 md:px-8 py-6">
+              <div className="w-full h-full min-h-0">{children}</div>
             </div>
 
-          <footer className="border-t border-border/60 bg-panel/30 px-4 md:px-8 py-4 text-xs text-muted">
-            © {new Date().getFullYear()} PoliticAll CRM
-          </footer>
-        </main>
+            {/* Footer fora do scroll do conteúdo */}
+            <footer className="border-t border-border/60 bg-panel/30 px-4 md:px-8 py-4 text-xs text-muted">
+              © {new Date().getFullYear()} PoliticAll CRM
+            </footer>
+          </main>
+        </div>
       </div>
     </div>
   );
