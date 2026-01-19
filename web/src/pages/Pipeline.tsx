@@ -4,9 +4,8 @@ import { api, moneyBRLFromCents } from "../lib/api";
 import { Card } from "../components/Card";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { Modal } from "../components/Modal";
 import { Select } from "../components/Select";
-import { Plus, Trash2, Pencil, BadgeCheck, CheckCircle2, Filter } from "lucide-react";
+import { Plus, Trash2, Pencil, BadgeCheck, CheckCircle2, Filter, X } from "lucide-react";
 import { cn } from "../lib/cn";
 
 type Stage = { id: string; name: string; order: number; isClosed: boolean };
@@ -35,15 +34,121 @@ type UserRow = {
   active: boolean;
 };
 
+function parseBRLToCents(v: string | number) {
+  const s = String(v ?? "")
+    .trim()
+    .replace(/\./g, "") // remove separador de milhar se vier (ex: 1.234,56)
+    .replace(",", "."); // decimal BR -> .
+  const n = Number(s);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.round(n * 100));
+}
+
+function centsToBRLInput(cents: number) {
+  const n = Number(cents ?? 0) / 100;
+  // mostra sem forçar 2 casas para não ficar “brigando” com digitação
+  return String(n).replace(".", ",");
+}
+
+function RightDrawer({
+  open,
+  title,
+  onClose,
+  children,
+  footer,
+}: {
+  open: boolean;
+  title: string;
+  onClose: () => void;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      {/* backdrop */}
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
+
+      {/* panel */}
+      <div
+        className={cn(
+          "absolute right-0 top-0 h-full w-full max-w-[560px]",
+          "bg-panel/95 border-l border-border shadow-2xl",
+          "flex flex-col"
+        )}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border/60">
+          <div className="min-w-0">
+            <div className="text-sm text-muted">Cadastro</div>
+            <div className="text-lg font-semibold tracking-tight truncate">{title}</div>
+          </div>
+          <button
+            className="p-2 rounded-xl hover:bg-white/5 border border-border/60"
+            onClick={onClose}
+            title="Fechar"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5">{children}</div>
+
+        {footer && <div className="px-5 py-4 border-t border-border/60 bg-panel/70">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+function CenterDialog({
+  open,
+  title,
+  description,
+  children,
+  onClose,
+}: {
+  open: boolean;
+  title: string;
+  description?: string;
+  children: React.ReactNode;
+  onClose: () => void;
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
+      <div className="absolute inset-0 grid place-items-center p-4" onMouseDown={onClose}>
+        <div
+          className={cn(
+            "w-full max-w-[520px] rounded-2xl border border-border bg-panel/95 shadow-2xl",
+            "overflow-hidden"
+          )}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <div className="px-5 py-4 border-b border-border/60">
+            <div className="text-lg font-semibold tracking-tight">{title}</div>
+            {description && <div className="mt-1 text-sm text-muted">{description}</div>}
+          </div>
+
+          <div className="px-5 py-5">{children}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Pipeline() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [q, setQ] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState<string>(""); // ✅ filtro por responsável
+  const [ownerFilter, setOwnerFilter] = useState<string>(""); // filtro por responsável
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [openModal, setOpenModal] = useState(false);
+  // Drawer (Criar/Editar)
+  const [openDrawer, setOpenDrawer] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
 
   const [form, setForm] = useState<any>({
@@ -53,10 +158,15 @@ export default function Pipeline() {
     city: "",
     source: "",
     notes: "",
-    valueCents: 0,
+    valueCents: 0, // mantém em centavos (API)
     stageId: "",
     ownerId: "",
   });
+
+  // Modais bonitos (Excluir / Baixar)
+  const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
+  const [soldTarget, setSoldTarget] = useState<Lead | null>(null);
+  const [soldAmount, setSoldAmount] = useState<string>("");
 
   // ===== refs =====
   const boardRef = React.useRef<HTMLDivElement | null>(null);
@@ -84,9 +194,7 @@ export default function Pipeline() {
     panSurfaceRef.current?.classList.remove("cursor-grabbing");
   }
 
-  // IMPORTANTÍSSIMO:
-  // - o listener fica no "panSurface" (wrapper maior)
-  // - e SEMPRE mexe no scrollLeft do boardRef
+  // listener no panSurface (wrapper maior) e mexe no scrollLeft do board
   function startPan(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType !== "mouse") return;
     if (e.button !== 0) return;
@@ -109,11 +217,9 @@ export default function Pipeline() {
     board.classList.add("cursor-grabbing");
     panSurfaceRef.current?.classList.add("cursor-grabbing");
 
-    // captura antes do DnD e impede disputa
     e.preventDefault();
     e.stopPropagation();
 
-    // captura o ponteiro (segura mesmo saindo da área)
     try {
       (e.currentTarget as any).setPointerCapture?.(e.pointerId);
     } catch {}
@@ -142,33 +248,22 @@ export default function Pipeline() {
   }
 
   // ===== Data (filtros locais) =====
-  // ✅ regras novas:
-  //  - lead BAIXADO (sale != null) NÃO aparece no kanban
-  //  - filtro por responsável (ownerFilter) filtra quem é o responsável
-  //  - busca (q) continua funcionando como antes
+  // - baixado (sale) NÃO aparece
+  // - filtro por responsável
+  // - busca
   const leadsVisible = useMemo(() => {
     const txt = q.trim().toLowerCase();
     return leads.filter((l) => {
-      // 2) baixado não aparece mais
-      if (l.sale) return false;
+      if (l.sale) return false; // baixado some do kanban
 
-      // 3) filtro por responsável (se setado)
       if (ownerFilter) {
         const oid = l.owner?.id ?? "";
         if (oid !== ownerFilter) return false;
       }
 
-      // busca simples (nome/cidade/origem/resp)
       if (!txt) return true;
 
-      const hay = [
-        l.name ?? "",
-        l.city ?? "",
-        l.source ?? "",
-        l.owner?.name ?? "",
-        l.email ?? "",
-        l.phone ?? "",
-      ]
+      const hay = [l.name ?? "", l.city ?? "", l.source ?? "", l.owner?.name ?? "", l.email ?? "", l.phone ?? ""]
         .join(" ")
         .toLowerCase();
 
@@ -186,7 +281,6 @@ export default function Pipeline() {
   async function load() {
     setLoading(true);
     try {
-      // Mantém exatamente como estava (não depende de API ter filtro por owner)
       const [s, l] = await Promise.all([
         api<{ stages: Stage[] }>("/stages"),
         api<{ leads: Lead[] }>(`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`),
@@ -228,7 +322,7 @@ export default function Pipeline() {
       stageId: stages[0]?.id ?? "",
       ownerId: "",
     });
-    setOpenModal(true);
+    setOpenDrawer(true);
   }
 
   function openEdit(lead: Lead) {
@@ -244,10 +338,11 @@ export default function Pipeline() {
       stageId: lead.stageId,
       ownerId: lead.owner?.id ?? "",
     });
-    setOpenModal(true);
+    setOpenDrawer(true);
   }
 
   async function saveLead() {
+    // (2) somente nome obrigatório
     if (!form.name?.trim()) return;
 
     if (editing) {
@@ -256,28 +351,38 @@ export default function Pipeline() {
       await api(`/leads`, { method: "POST", body: JSON.stringify(form) });
     }
 
-    setOpenModal(false);
+    setOpenDrawer(false);
     await load();
   }
 
-  async function deleteLead(id: string) {
-    if (!confirm("Excluir lead?")) return;
-    await api(`/leads/${id}`, { method: "DELETE" });
+  function askDelete(lead: Lead) {
+    setDeleteTarget(lead);
+  }
+
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    await api(`/leads/${deleteTarget.id}`, { method: "DELETE" });
+    setDeleteTarget(null);
     await load();
   }
 
-  async function markSold(lead: Lead) {
-    const amount = prompt("Valor da venda (R$):", ((lead.valueCents ?? 0) / 100).toString());
-    if (amount == null) return;
-    const cents = Math.max(0, Math.round(Number(amount.replace(",", ".")) * 100));
+  function askSold(lead: Lead) {
+    setSoldTarget(lead);
+    setSoldAmount(String((lead.valueCents ?? 0) / 100).replace(".", ",")); // pré-preenche em R$
+  }
 
-    await api(`/leads/${lead.id}/mark-sold`, {
+  async function confirmSold() {
+    if (!soldTarget) return;
+    const cents = parseBRLToCents(soldAmount);
+
+    await api(`/leads/${soldTarget.id}/mark-sold`, {
       method: "POST",
       body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
     });
 
-    // ✅ some do kanban após dar baixa (porque sale passa a existir)
-    await load();
+    setSoldTarget(null);
+    setSoldAmount("");
+    await load(); // some do kanban porque agora sale existe
   }
 
   async function onDragEnd(result: DropResult) {
@@ -287,7 +392,7 @@ export default function Pipeline() {
 
     const stageId = destination.droppableId;
 
-    // otimista (mantém)
+    // otimista
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
@@ -300,7 +405,6 @@ export default function Pipeline() {
   }
 
   return (
-    // ✅ IMPORTANTE: página em flex e ocupa altura inteira do container pai (AppShell precisa permitir)
     <div className="h-full min-h-0 flex flex-col gap-5">
       {/* Header */}
       <div className="rounded-2xl border border-border bg-panel/60 p-4 md:p-5 shadow-soft">
@@ -317,7 +421,7 @@ export default function Pipeline() {
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
             </div>
 
-            {/* ✅ filtro por responsável */}
+            {/* filtro por responsável */}
             <div className="w-full md:w-[260px]">
               <Select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
                 <option value="">Todos responsáveis</option>
@@ -342,9 +446,9 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* ✅ Pan surface: pega clique/drag em qualquer vazio dessa área e move o scroll do board */}
+      {/* Pan surface */}
       <div ref={panSurfaceRef} onPointerDownCapture={startPan} className={cn("flex-1 min-h-0", "cursor-grab")}>
-        {/* BOARD (scroll horizontal real) */}
+        {/* BOARD */}
         <div
           ref={boardRef}
           onWheel={onWheelBoard}
@@ -362,12 +466,12 @@ export default function Pipeline() {
                           snapshot.isDraggingOver && "ring-2 ring-primary/35"
                         )}
                       >
-                        {/* Column header (esticado como você gostou) */}
+                        {/* Column header */}
                         <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-4 py-3 backdrop-blur">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="truncate font-semibold">{stage.name}</div>
-                              {/* 4) removido texto dos fechados */}
+                              {/* (4) texto de fechados removido */}
                             </div>
                             <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
                               {filteredLeads[stage.id]?.length ?? 0}
@@ -375,14 +479,13 @@ export default function Pipeline() {
                           </div>
                         </div>
 
-                        {/* Cards (scroll vertical interno) */}
+                        {/* Cards */}
                         <div className="flex-1 overflow-y-auto">
                           <div className="space-y-3 p-4 min-h-full">
                             {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
                               <Draggable key={lead.id} draggableId={lead.id} index={idx}>
                                 {(p) => (
                                   <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
-                                    {/* BLOQUEIA PAN EM CIMA DO CARD */}
                                     <div data-pan-block="true">
                                       <Card className="group p-4 bg-bg/40 hover:bg-bg/55 transition ring-1 ring-transparent hover:ring-border/60">
                                         <div className="flex items-start justify-between gap-2">
@@ -406,7 +509,7 @@ export default function Pipeline() {
                                             </button>
                                             <button
                                               className="p-2 rounded-xl hover:bg-border/30"
-                                              onClick={() => deleteLead(lead.id)}
+                                              onClick={() => askDelete(lead)}
                                               title="Excluir"
                                             >
                                               <Trash2 size={16} />
@@ -419,8 +522,7 @@ export default function Pipeline() {
                                             {moneyBRLFromCents(lead.valueCents)}
                                           </div>
 
-                                          {/* 1) quando baixado: layout igual (badge) + ícone (sem texto) */}
-                                          {/* OBS: lead baixado não aparece no kanban (regra 2), mas deixo pronto caso queira permitir "mostrar baixados" no futuro */}
+                                          {/* (1) Baixado: ícone com mesmo badge/layout (não aparece no kanban por regra, mas fica pronto) */}
                                           {lead.sale && (
                                             <span
                                               className="inline-flex items-center justify-center rounded-full bg-primary/15 px-3 py-1 text-sm font-semibold text-primary"
@@ -430,9 +532,9 @@ export default function Pipeline() {
                                             </span>
                                           )}
 
-                                          {/* Dar baixa continua aparecendo só em etapa fechada e quando NÃO está baixado */}
+                                          {/* Baixa */}
                                           {stage.isClosed && !lead.sale && (
-                                            <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
+                                            <Button size="sm" variant="outline" onClick={() => askSold(lead)}>
                                               <BadgeCheck size={16} /> Dar baixa
                                             </Button>
                                           )}
@@ -445,8 +547,6 @@ export default function Pipeline() {
                             ))}
 
                             {provided.placeholder}
-
-                            {/* Espaço “vazio” REAL dentro da coluna (clicável pro pan) */}
                             <div className="h-24" />
                           </div>
                         </div>
@@ -456,19 +556,33 @@ export default function Pipeline() {
                 </Droppable>
               ))}
 
-              {/* margem final */}
               <div className="w-4 shrink-0" />
             </div>
           </DragDropContext>
         </div>
       </div>
 
-      {/* Modal */}
-      <Modal open={openModal} onClose={() => setOpenModal(false)} title={editing ? "Editar Lead" : "Novo Lead"}>
+      {/* Drawer Criar/Editar (direita) */}
+      <RightDrawer
+        open={openDrawer}
+        onClose={() => setOpenDrawer(false)}
+        title={editing ? "Editar Lead" : "Novo Lead"}
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setOpenDrawer(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveLead}>{editing ? "Salvar" : "Criar"}</Button>
+          </div>
+        }
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
-            <div className="text-xs text-muted mb-1">Nome</div>
+            <div className="text-xs text-muted mb-1">
+              Nome <span className="text-accent">*</span>
+            </div>
             <Input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} />
+            <div className="text-xs text-muted mt-1">Somente o nome é obrigatório.</div>
           </div>
 
           <div>
@@ -491,14 +605,19 @@ export default function Pipeline() {
             <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
           </div>
 
+          {/* (3) VALOR EM R$ (reais) */}
           <div>
-            <div className="text-xs text-muted mb-1">Valor (centavos)</div>
+            <div className="text-xs text-muted mb-1">Valor (R$)</div>
             <Input
-              type="number"
-              value={form.valueCents}
-              onChange={(e) => setForm((f: any) => ({ ...f, valueCents: Number(e.target.value) }))}
+              inputMode="decimal"
+              value={centsToBRLInput(form.valueCents)}
+              onChange={(e) => {
+                const cents = parseBRLToCents(e.target.value);
+                setForm((f: any) => ({ ...f, valueCents: cents }));
+              }}
+              placeholder="Ex.: 100,00"
             />
-            <div className="text-xs text-muted mt-1">Dica: 10000 = R$ 100,00</div>
+            <div className="text-xs text-muted mt-1">Digite em reais. Ex.: 100 = R$ 100,00</div>
           </div>
 
           <div>
@@ -528,20 +647,69 @@ export default function Pipeline() {
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Notas</div>
             <textarea
-              className="w-full min-h-[90px] rounded-xl border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
+              className="w-full min-h-[110px] rounded-xl border border-border bg-panel p-3 text-sm outline-none focus:ring-2 focus:ring-primary/40"
               value={form.notes}
               onChange={(e) => setForm((f: any) => ({ ...f, notes: e.target.value }))}
             />
           </div>
         </div>
+      </RightDrawer>
 
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="ghost" onClick={() => setOpenModal(false)}>
+      {/* Modal padrão: excluir */}
+      <CenterDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Excluir lead"
+        description={deleteTarget ? `Tem certeza que deseja excluir "${deleteTarget.name}"?` : undefined}
+      >
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" onClick={() => setDeleteTarget(null)}>
             Cancelar
           </Button>
-          <Button onClick={saveLead}>{editing ? "Salvar" : "Criar"}</Button>
+          <Button variant="outline" onClick={confirmDelete}>
+            <Trash2 size={16} /> Excluir
+          </Button>
         </div>
-      </Modal>
+      </CenterDialog>
+
+      {/* Modal padrão: baixa */}
+      <CenterDialog
+        open={!!soldTarget}
+        onClose={() => {
+          setSoldTarget(null);
+          setSoldAmount("");
+        }}
+        title="Dar baixa (venda)"
+        description={soldTarget ? `Informe o valor da venda para "${soldTarget.name}".` : undefined}
+      >
+        <div className="space-y-4">
+          <div>
+            <div className="text-xs text-muted mb-1">Valor da venda (R$)</div>
+            <Input
+              inputMode="decimal"
+              value={soldAmount}
+              onChange={(e) => setSoldAmount(e.target.value)}
+              placeholder="Ex.: 150,00"
+            />
+            <div className="text-xs text-muted mt-1">Digite em reais. Ex.: 100 = R$ 100,00</div>
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setSoldTarget(null);
+                setSoldAmount("");
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button variant="outline" onClick={confirmSold}>
+              <BadgeCheck size={16} /> Confirmar baixa
+            </Button>
+          </div>
+        </div>
+      </CenterDialog>
     </div>
   );
 }
