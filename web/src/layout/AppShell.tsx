@@ -169,7 +169,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           {/* Conteúdo */}
           <div className="flex-1 px-4 md:px-8 py-6">
-            <div className="w-full max-w-[1250px]">{children}</div>
+            <div className="w-full">{children}</div>
             </div>
 
           <footer className="border-t border-border/60 bg-panel/30 px-4 md:px-8 py-4 text-xs text-muted">
