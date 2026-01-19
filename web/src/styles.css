@@ -32,3 +32,8 @@
 
 * { box-sizing: border-box; }
 a { color: inherit; }
+
+/* Esconde scrollbar (horizontal/vertical) sem perder o scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
