@@ -81,7 +81,10 @@ export default function Pipeline() {
     if (el) el.classList.remove("cursor-grabbing");
   }
 
-  function startPan(e: React.MouseEvent) {
+  // ✅ Pointer-based pan (captura antes do DnD) — funciona no vazio sem brigar com drag do card
+  function startPan(e: React.PointerEvent<HTMLDivElement>) {
+    // só mouse (evita conflito com touch)
+    if (e.pointerType !== "mouse") return;
     if (e.button !== 0) return;
 
     const el = boardRef.current;
@@ -95,29 +98,42 @@ export default function Pipeline() {
     // Não iniciar pan em cima de card (pra não brigar com DnD)
     if (target.closest("[data-pan-block='true']")) return;
 
-    // aqui é vazio/coluna/header: pan permitido
     isPanningRef.current = true;
     panStartXRef.current = e.clientX;
     panScrollLeftRef.current = el.scrollLeft;
 
     el.classList.add("cursor-grabbing");
-    e.preventDefault();
 
-    const onMove = (ev: MouseEvent) => {
+    // ganha prioridade do gesto antes do DnD
+    e.preventDefault();
+    e.stopPropagation();
+
+    // captura o ponteiro (segura o drag mesmo se sair da área)
+    try {
+      (e.currentTarget as any).setPointerCapture?.(e.pointerId);
+    } catch {}
+
+    const onMove = (ev: PointerEvent) => {
       if (!isPanningRef.current) return;
       const dx = ev.clientX - panStartXRef.current;
       el.scrollLeft = panScrollLeftRef.current - dx;
       ev.preventDefault();
     };
 
-    const onUp = () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+    const onUp = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+
+      try {
+        (e.currentTarget as any).releasePointerCapture?.(e.pointerId);
+      } catch {}
+
       stopPan();
+      ev.preventDefault();
     };
 
-    window.addEventListener("mousemove", onMove, { passive: false });
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp, { passive: false });
   }
 
   // ===== Data =====
@@ -276,7 +292,8 @@ export default function Pipeline() {
       <div
         ref={boardRef}
         onWheel={onWheelBoard}
-        onMouseDown={startPan}
+        // ✅ importante: CAPTURE antes do DnD
+        onPointerDownCapture={startPan}
         className={cn(
           "overflow-x-auto no-scrollbar scroll-smooth select-none",
           "cursor-grab",
@@ -301,9 +318,7 @@ export default function Pipeline() {
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="truncate font-semibold">{stage.name}</div>
-                            {stage.isClosed && (
-                              <div className="mt-1 text-xs text-accent">Fechados: habilita “Dar baixa”</div>
-                            )}
+                            {stage.isClosed && <div className="mt-1 text-xs text-accent">Fechados: habilita “Dar baixa”</div>}
                           </div>
                           <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
                             {filteredLeads[stage.id]?.length ?? 0}
@@ -394,22 +409,27 @@ export default function Pipeline() {
             <div className="text-xs text-muted mb-1">Nome</div>
             <Input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} />
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Telefone</div>
             <Input value={form.phone} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Email</div>
             <Input value={form.email} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Cidade</div>
             <Input value={form.city} onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))} />
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Origem</div>
             <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Valor (centavos)</div>
             <Input
@@ -419,6 +439,7 @@ export default function Pipeline() {
             />
             <div className="text-xs text-muted mt-1">Dica: 10000 = R$ 100,00</div>
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Stage</div>
             <Select value={form.stageId} onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}>
@@ -429,6 +450,7 @@ export default function Pipeline() {
               ))}
             </Select>
           </div>
+
           <div>
             <div className="text-xs text-muted mb-1">Responsável (se permitido)</div>
             <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
@@ -441,6 +463,7 @@ export default function Pipeline() {
             </Select>
             <div className="text-xs text-muted mt-1">AGENT sempre cria/edita como ele mesmo.</div>
           </div>
+
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Notas</div>
             <textarea
