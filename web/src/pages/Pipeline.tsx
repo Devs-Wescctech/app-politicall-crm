@@ -25,7 +25,6 @@ type Lead = {
   owner?: { id: string; name: string } | null;
   sale?: { id: string } | null;
 };
-
 type UserRow = {
   id: string;
   name: string;
@@ -57,51 +56,77 @@ export default function Pipeline() {
     ownerId: "",
   });
 
-  // ===== Board horizontal scroll (wheel + click&drag) =====
+  // ========= BOARD SCROLL =========
   const boardRef = React.useRef<HTMLDivElement | null>(null);
 
+  // Wheel: vertical -> horizontal
   function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
-    // Trackpad horizontal: não mexe
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-
-    // Transforma scroll vertical em horizontal
     e.preventDefault();
     const el = boardRef.current;
     if (!el) return;
     el.scrollLeft += e.deltaY;
   }
 
+  // SPACE + DRAG (modo pan) - robusto, não conflita com DnD
+  const spaceDownRef = React.useRef(false);
   const isPanningRef = React.useRef(false);
   const panStartXRef = React.useRef(0);
   const panScrollLeftRef = React.useRef(0);
 
-  function endPan() {
+  // escuta SPACE global
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        // evita scroll da página quando apertar space
+        e.preventDefault();
+        spaceDownRef.current = true;
+        const el = boardRef.current;
+        if (el) el.classList.add("cursor-grab");
+      }
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault();
+        spaceDownRef.current = false;
+        stopPan();
+        const el = boardRef.current;
+        if (el) el.classList.remove("cursor-grab", "cursor-grabbing");
+      }
+    };
+
+    window.addEventListener("keydown", down, { passive: false });
+    window.addEventListener("keyup", up, { passive: false });
+
+    return () => {
+      window.removeEventListener("keydown", down as any);
+      window.removeEventListener("keyup", up as any);
+    };
+  }, []);
+
+  function stopPan() {
+    isPanningRef.current = false;
     const el = boardRef.current;
     if (el) el.classList.remove("cursor-grabbing");
-    isPanningRef.current = false;
   }
 
   function startPan(e: React.MouseEvent<HTMLDivElement>) {
+    // só inicia pan se SPACE estiver pressionado
+    if (!spaceDownRef.current) return;
     if (e.button !== 0) return;
 
     const el = boardRef.current;
     if (!el) return;
 
+    // não iniciar pan em inputs/botões (pra não atrapalhar)
     const target = e.target as HTMLElement;
-
-    // Não iniciar PAN em cima de elementos interativos
     if (target.closest("button, a, input, textarea, select, option, label")) return;
-
-    // Não iniciar PAN em cima do card (pra não conflitar com DnD)
-    if (target.closest("[data-pan-block]")) return;
 
     isPanningRef.current = true;
     panStartXRef.current = e.clientX;
     panScrollLeftRef.current = el.scrollLeft;
-
     el.classList.add("cursor-grabbing");
 
-    // Captura globalmente (funciona mesmo passando por cima de elementos)
     const onMove = (ev: MouseEvent) => {
       if (!isPanningRef.current) return;
       const dx = ev.clientX - panStartXRef.current;
@@ -112,14 +137,14 @@ export default function Pipeline() {
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
-      endPan();
+      stopPan();
     };
 
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   }
 
-  // ===== Data =====
+  // ========= DATA =========
   const filteredLeads = useMemo(() => {
     const byStage: Record<string, Lead[]> = {};
     for (const s of stages) byStage[s.id] = [];
@@ -134,7 +159,6 @@ export default function Pipeline() {
         api<{ stages: Stage[] }>("/stages"),
         api<{ leads: Lead[] }>(`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`),
       ]);
-
       setStages(s.stages);
       setLeads(l.leads);
 
@@ -192,13 +216,11 @@ export default function Pipeline() {
 
   async function saveLead() {
     if (!form.name?.trim()) return;
-
     if (editing) {
       await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(form) });
     } else {
       await api(`/leads`, { method: "POST", body: JSON.stringify(form) });
     }
-
     setOpenModal(false);
     await load();
   }
@@ -213,12 +235,10 @@ export default function Pipeline() {
     const amount = prompt("Valor da venda (R$):", ((lead.valueCents ?? 0) / 100).toString());
     if (amount == null) return;
     const cents = Math.max(0, Math.round(Number(amount.replace(",", ".")) * 100));
-
     await api(`/leads/${lead.id}/mark-sold`, {
       method: "POST",
       body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
     });
-
     await load();
   }
 
@@ -232,7 +252,10 @@ export default function Pipeline() {
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
-      await api(`/leads/${draggableId}/move`, { method: "POST", body: JSON.stringify({ stageId }) });
+      await api(`/leads/${draggableId}/move`, {
+        method: "POST",
+        body: JSON.stringify({ stageId }),
+      });
       await load();
     } catch (e: any) {
       alert(e.message);
@@ -249,6 +272,9 @@ export default function Pipeline() {
             <div className="text-2xl font-semibold tracking-tight">Pipeline</div>
             <div className="mt-1 text-sm text-muted">
               Kanban de oportunidades • Arraste entre etapas • Etapas fechadas → Dar baixa
+            </div>
+            <div className="mt-2 text-xs text-muted">
+              Dica: segure <b>SPACE</b> e arraste para navegar pro lado.
             </div>
           </div>
 
@@ -270,202 +296,146 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* Board: ocupa altura p/ ter área vazia clicável */}
+      {/* Board */}
       <div
         ref={boardRef}
         onWheel={onWheelBoard}
         onMouseDown={startPan}
-        className={cn(
-          "overflow-x-auto no-scrollbar scroll-smooth cursor-grab select-none",
-          "h-[calc(100vh-330px)] min-h-[520px] pb-4"
-        )}
+        className="overflow-x-auto no-scrollbar scroll-smooth pb-3 select-none"
       >
         <DragDropContext onDragEnd={onDragEnd}>
-          {/* Wrapper vertical: colunas + faixa vazia inferior para pan */}
-          <div className="min-w-[1180px] h-full flex flex-col">
-            {/* Linha de colunas */}
-            <div className="flex gap-5 flex-1 items-stretch">
-              {stages.map((stage) => (
-                <Droppable key={stage.id} droppableId={stage.id}>
-                  {(provided, snapshot) => (
-                    <div className="w-[360px] shrink-0 h-full" ref={provided.innerRef} {...provided.droppableProps}>
-                      <div
-                        className={cn(
-                          "h-full rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden flex flex-col",
-                          snapshot.isDraggingOver && "ring-2 ring-primary/35"
-                        )}
-                      >
-                        {/* Column header */}
-                        <div className="border-b border-border bg-panel/80 px-5 py-4 backdrop-blur">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <div className="truncate font-semibold text-[15px]">{stage.name}</div>
-                              {stage.isClosed && (
-                                <div className="mt-1 text-xs text-accent">
-                                  Etapa fechada • habilita “Dar baixa”
-                                </div>
-                              )}
-                            </div>
-
-                            <div className="shrink-0 inline-flex items-center rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
-                              {filteredLeads[stage.id]?.length ?? 0}
-                            </div>
+          <div className="flex gap-5 min-w-[1180px]">
+            {stages.map((stage) => (
+              <Droppable key={stage.id} droppableId={stage.id}>
+                {(provided, snapshot) => (
+                  <div className="w-[360px] shrink-0" ref={provided.innerRef} {...provided.droppableProps}>
+                    <div
+                      className={cn(
+                        "rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden",
+                        snapshot.isDraggingOver && "ring-2 ring-primary/35"
+                      )}
+                    >
+                      <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-5 py-4 backdrop-blur">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="truncate font-semibold text-[15px]">{stage.name}</div>
+                            {stage.isClosed && (
+                              <div className="mt-1 text-xs text-accent">Etapa fechada • habilita “Dar baixa”</div>
+                            )}
                           </div>
-                        </div>
-
-                        {/* Cards area */}
-                        <div className="flex-1 overflow-y-auto">
-                          <div className="p-5 h-full flex flex-col">
-                            <div className="space-y-3">
-                              {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
-                                <Draggable key={lead.id} draggableId={lead.id} index={idx}>
-                                  {(p, snap) => (
-                                    <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
-                                      {/* Bloqueia pan apenas em cima do card */}
-                                      <div data-pan-block>
-                                        <Card
-                                          className={cn(
-                                            "group p-5 bg-bg/40 hover:bg-bg/55 transition",
-                                            "ring-1 ring-transparent hover:ring-border/60",
-                                            snap.isDragging && "ring-2 ring-primary/35 shadow-soft"
-                                          )}
-                                        >
-                                          <div className="flex items-start justify-between gap-2">
-                                            <div className="min-w-0">
-                                              <div className="font-semibold leading-tight truncate text-[15px]">
-                                                {lead.name}
-                                              </div>
-                                              <div className="text-xs text-muted mt-1">
-                                                {lead.city ? `${lead.city} • ` : ""}
-                                                {lead.source ?? "Sem origem"}
-                                              </div>
-                                              <div className="text-xs text-muted mt-1 truncate">
-                                                {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
-                                              </div>
-                                            </div>
-
-                                            <div className="flex gap-1 opacity-90">
-                                              <button
-                                                className="p-2 rounded-xl hover:bg-border/30 transition"
-                                                onClick={() => openEdit(lead)}
-                                                title="Editar"
-                                              >
-                                                <Pencil size={16} />
-                                              </button>
-                                              <button
-                                                className="p-2 rounded-xl hover:bg-border/30 transition"
-                                                onClick={() => deleteLead(lead.id)}
-                                                title="Excluir"
-                                              >
-                                                <Trash2 size={16} />
-                                              </button>
-                                            </div>
-                                          </div>
-
-                                          <div className="mt-4 flex items-center justify-between gap-3">
-                                            <div className="inline-flex items-center rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-semibold text-primary">
-                                              {moneyBRLFromCents(lead.valueCents)}
-                                            </div>
-
-                                            <div className="flex items-center gap-2">
-                                              {stage.isClosed && !lead.sale && (
-                                                <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
-                                                  <BadgeCheck size={16} /> Dar baixa
-                                                </Button>
-                                              )}
-                                              {lead.sale && (
-                                                <div className="text-xs font-semibold text-accent whitespace-nowrap">
-                                                  Baixado ✔
-                                                </div>
-                                              )}
-                                            </div>
-                                          </div>
-                                        </Card>
-                                      </div>
-                                    </div>
-                                  )}
-                                </Draggable>
-                              ))}
-
-                              {provided.placeholder}
-
-                              {(filteredLeads[stage.id] ?? []).length === 0 && (
-                                <div className="rounded-2xl border border-border/70 bg-white/5 p-4 text-sm text-muted">
-                                  Sem leads nesta etapa.
-                                </div>
-                              )}
-                            </div>
-
-                            {/* ✅ SUPERFÍCIE VAZIA GRANDE DENTRO DA COLUNA (clicável para pan) */}
-                            <div
-                              onMouseDown={startPan}
-                              className="flex-1 mt-3 rounded-2xl border border-border/40 bg-white/[0.02]"
-                              title="Arraste aqui para navegar"
-                            />
+                          <div className="shrink-0 inline-flex items-center rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
+                            {filteredLeads[stage.id]?.length ?? 0}
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
-                </Droppable>
-              ))}
-            </div>
 
-            {/* ✅ FAIXA VAZIA INFERIOR (clicável para pan em qualquer lugar) */}
-            <div
-              onMouseDown={startPan}
-              className="h-16 mt-3 rounded-2xl border border-border/40 bg-white/[0.02]"
-              title="Arraste aqui para navegar"
-            />
+                      <div className="space-y-3 p-5">
+                        {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
+                          <Draggable key={lead.id} draggableId={lead.id} index={idx}>
+                            {(p, snap) => (
+                              <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
+                                <Card
+                                  className={cn(
+                                    "group p-5 bg-bg/40 hover:bg-bg/55 transition",
+                                    "ring-1 ring-transparent hover:ring-border/60",
+                                    snap.isDragging && "ring-2 ring-primary/35 shadow-soft"
+                                  )}
+                                >
+                                  <div className="flex items-start justify-between gap-2">
+                                    <div className="min-w-0">
+                                      <div className="font-semibold leading-tight truncate text-[15px]">{lead.name}</div>
+                                      <div className="text-xs text-muted mt-1">
+                                        {lead.city ? `${lead.city} • ` : ""}
+                                        {lead.source ?? "Sem origem"}
+                                      </div>
+                                      <div className="text-xs text-muted mt-1 truncate">
+                                        {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
+                                      </div>
+                                    </div>
+
+                                    <div className="flex gap-1 opacity-90">
+                                      <button
+                                        className="p-2 rounded-xl hover:bg-border/30 transition"
+                                        onClick={() => openEdit(lead)}
+                                        title="Editar"
+                                      >
+                                        <Pencil size={16} />
+                                      </button>
+                                      <button
+                                        className="p-2 rounded-xl hover:bg-border/30 transition"
+                                        onClick={() => deleteLead(lead.id)}
+                                        title="Excluir"
+                                      >
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-4 flex items-center justify-between gap-3">
+                                    <div className="inline-flex items-center rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-semibold text-primary">
+                                      {moneyBRLFromCents(lead.valueCents)}
+                                    </div>
+
+                                    <div className="flex items-center gap-2">
+                                      {stage.isClosed && !lead.sale && (
+                                        <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
+                                          <BadgeCheck size={16} /> Dar baixa
+                                        </Button>
+                                      )}
+                                      {lead.sale && (
+                                        <div className="text-xs font-semibold text-accent whitespace-nowrap">Baixado ✔</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </Card>
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+
+                        {provided.placeholder}
+
+                        {(filteredLeads[stage.id] ?? []).length === 0 && (
+                          <div className="rounded-2xl border border-border/70 bg-white/5 p-4 text-sm text-muted">
+                            Sem leads nesta etapa.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </Droppable>
+            ))}
           </div>
         </DragDropContext>
       </div>
 
       {/* Modal */}
-      <Modal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        title={editing ? "Editar Lead" : "Novo Lead"}
-      >
+      <Modal open={openModal} onClose={() => setOpenModal(false)} title={editing ? "Editar Lead" : "Novo Lead"}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Nome</div>
-            <Input
-              value={form.name}
-              onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))}
-            />
+            <Input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} />
           </div>
 
           <div>
             <div className="text-xs text-muted mb-1">Telefone</div>
-            <Input
-              value={form.phone}
-              onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))}
-            />
+            <Input value={form.phone} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
           </div>
 
           <div>
             <div className="text-xs text-muted mb-1">Email</div>
-            <Input
-              value={form.email}
-              onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))}
-            />
+            <Input value={form.email} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
           </div>
 
           <div>
             <div className="text-xs text-muted mb-1">Cidade</div>
-            <Input
-              value={form.city}
-              onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))}
-            />
+            <Input value={form.city} onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))} />
           </div>
 
           <div>
             <div className="text-xs text-muted mb-1">Origem</div>
-            <Input
-              value={form.source}
-              onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))}
-            />
+            <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
           </div>
 
           <div>
@@ -480,10 +450,7 @@ export default function Pipeline() {
 
           <div>
             <div className="text-xs text-muted mb-1">Stage</div>
-            <Select
-              value={form.stageId}
-              onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}
-            >
+            <Select value={form.stageId} onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}>
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -494,10 +461,7 @@ export default function Pipeline() {
 
           <div>
             <div className="text-xs text-muted mb-1">Responsável (se permitido)</div>
-            <Select
-              value={form.ownerId}
-              onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}
-            >
+            <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
               <option value="">Automático</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
