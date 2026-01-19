@@ -57,6 +57,19 @@ export default function Pipeline() {
     ownerId: "",
   });
 
+  // Scroll horizontal do board com mouse wheel (remove necessidade da barra embaixo)
+  const boardRef = React.useRef<HTMLDivElement | null>(null);
+
+  function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
+    // se o gesto já é horizontal, não interfere
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
+
+    e.preventDefault();
+    const el = boardRef.current;
+    if (!el) return;
+    el.scrollLeft += e.deltaY;
+  }
+
   const filteredLeads = useMemo(() => {
     const byStage: Record<string, Lead[]> = {};
     for (const s of stages) byStage[s.id] = [];
@@ -71,6 +84,7 @@ export default function Pipeline() {
         api<{ stages: Stage[] }>("/stages"),
         api<{ leads: Lead[] }>(`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`),
       ]);
+
       setStages(s.stages);
       setLeads(l.leads);
 
@@ -91,6 +105,7 @@ export default function Pipeline() {
 
   useEffect(() => {
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function openCreate() {
@@ -127,11 +142,13 @@ export default function Pipeline() {
 
   async function saveLead() {
     if (!form.name?.trim()) return;
+
     if (editing) {
       await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(form) });
     } else {
       await api(`/leads`, { method: "POST", body: JSON.stringify(form) });
     }
+
     setOpenModal(false);
     await load();
   }
@@ -146,10 +163,12 @@ export default function Pipeline() {
     const amount = prompt("Valor da venda (R$):", ((lead.valueCents ?? 0) / 100).toString());
     if (amount == null) return;
     const cents = Math.max(0, Math.round(Number(amount.replace(",", ".")) * 100));
+
     await api(`/leads/${lead.id}/mark-sold`, {
       method: "POST",
       body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
     });
+
     await load();
   }
 
@@ -159,6 +178,8 @@ export default function Pipeline() {
     if (destination.droppableId === source.droppableId) return;
 
     const stageId = destination.droppableId;
+
+    // otimista
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
@@ -200,15 +221,22 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* Board */}
-      <div className="overflow-x-auto">
+      {/* Board (scroll horizontal com mouse wheel, sem scrollbar) */}
+      <div
+        ref={boardRef}
+        onWheel={onWheelBoard}
+        className="overflow-x-auto no-scrollbar scroll-smooth pb-3"
+      >
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-5 min-w-[1180px] pb-3">
+          <div className="flex gap-5 min-w-[1180px]">
             {stages.map((stage) => (
               <Droppable key={stage.id} droppableId={stage.id}>
                 {(provided, snapshot) => (
-                  <div className="w-[360px] shrink-0" ref={provided.innerRef} {...provided.droppableProps}>
-                    {/* Column shell */}
+                  <div
+                    className="w-[360px] shrink-0"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                  >
                     <div
                       className={cn(
                         "rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden",
@@ -233,7 +261,7 @@ export default function Pipeline() {
                         </div>
                       </div>
 
-                      {/* Cards area: scroll interno por coluna (mantém tudo alinhado) */}
+                      {/* Cards area */}
                       <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
                         <div className="space-y-3 p-5">
                           {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
@@ -259,6 +287,7 @@ export default function Pipeline() {
                                         </div>
 
                                         <div className="text-xs text-muted mt-1 truncate">
+s
                                           {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
                                         </div>
                                       </div>
@@ -307,7 +336,6 @@ export default function Pipeline() {
                           ))}
                           {provided.placeholder}
 
-                          {/* Empty state (melhora alinhamento/UX) */}
                           {(filteredLeads[stage.id] ?? []).length === 0 && (
                             <div className="rounded-2xl border border-border/70 bg-white/5 p-4 text-sm text-muted">
                               Sem leads nesta etapa.
@@ -324,7 +352,11 @@ export default function Pipeline() {
         </DragDropContext>
       </div>
 
-      <Modal open={openModal} onClose={() => setOpenModal(false)} title={editing ? "Editar Lead" : "Novo Lead"}>
+      <Modal
+        open={openModal}
+        onClose={() => setOpenModal(false)}
+        title={editing ? "Editar Lead" : "Novo Lead"}
+      >
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Nome</div>
