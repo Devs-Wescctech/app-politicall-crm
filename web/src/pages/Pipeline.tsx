@@ -61,10 +61,10 @@ export default function Pipeline() {
   const boardRef = React.useRef<HTMLDivElement | null>(null);
 
   function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
-    // se o gesto já é horizontal (trackpad), não interfere
+    // trackpad horizontal: não mexe
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
 
-    // transforma scroll vertical em horizontal
+    // transforma vertical em horizontal
     e.preventDefault();
     const el = boardRef.current;
     if (!el) return;
@@ -87,9 +87,13 @@ export default function Pipeline() {
     const el = boardRef.current;
     if (!el) return;
 
-    // NÃO iniciar pan se clicou em algo interativo (botões/inputs etc.)
     const target = e.target as HTMLElement;
+
+    // Não iniciar PAN em cima de coisas interativas
     if (target.closest("button, a, input, textarea, select, option, label")) return;
+
+    // Não iniciar PAN em cima de cards (para não conflitar com DnD)
+    if (target.closest("[data-no-pan]")) return;
 
     isPanningRef.current = true;
     panStartXRef.current = e.clientX;
@@ -97,7 +101,6 @@ export default function Pipeline() {
 
     el.classList.add("cursor-grabbing");
 
-    // captura movimento globalmente (funciona mesmo passando por cima de cards / DnD)
     const onMove = (ev: MouseEvent) => {
       if (!isPanningRef.current) return;
       const dx = ev.clientX - panStartXRef.current;
@@ -267,27 +270,35 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* Board (scroll horizontal com wheel + click&drag, sem scrollbar) */}
+      {/* Board ocupa altura do viewport para ter "área vazia" clicável */}
       <div
         ref={boardRef}
         onWheel={onWheelBoard}
         onMouseDown={startPan}
-        className="overflow-x-auto no-scrollbar scroll-smooth pb-3 cursor-grab select-none"
+        className={cn(
+          "overflow-x-auto no-scrollbar scroll-smooth cursor-grab select-none",
+          // altura para pegar a área vazia (ajusta sem quebrar o sistema)
+          "h-[calc(100vh-330px)] min-h-[520px] pb-4"
+        )}
       >
         <DragDropContext onDragEnd={onDragEnd}>
-          <div className="flex gap-5 min-w-[1180px]">
+          <div className="flex gap-5 min-w-[1180px] h-full items-stretch">
             {stages.map((stage) => (
               <Droppable key={stage.id} droppableId={stage.id}>
                 {(provided, snapshot) => (
-                  <div className="w-[360px] shrink-0" ref={provided.innerRef} {...provided.droppableProps}>
+                  <div
+                    className="w-[360px] shrink-0 h-full"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                  >
                     <div
                       className={cn(
-                        "rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden",
+                        "h-full rounded-2xl border border-border bg-panel/40 shadow-soft overflow-hidden flex flex-col",
                         snapshot.isDraggingOver && "ring-2 ring-primary/35"
                       )}
                     >
                       {/* Column header */}
-                      <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-5 py-4 backdrop-blur">
+                      <div className="border-b border-border bg-panel/80 px-5 py-4 backdrop-blur">
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
                             <div className="truncate font-semibold text-[15px]">{stage.name}</div>
@@ -304,74 +315,76 @@ export default function Pipeline() {
                         </div>
                       </div>
 
-                      {/* Cards area */}
-                      <div className="max-h-[calc(100vh-320px)] overflow-y-auto">
+                      {/* Cards area (scroll vertical interno) */}
+                      <div className="flex-1 overflow-y-auto">
                         <div className="space-y-3 p-5">
                           {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
                             <Draggable key={lead.id} draggableId={lead.id} index={idx}>
                               {(p, snap) => (
                                 <div ref={p.innerRef} {...p.draggableProps} {...p.dragHandleProps}>
-                                  <Card
-                                    className={cn(
-                                      "group p-5 bg-bg/40 hover:bg-bg/55 transition",
-                                      "ring-1 ring-transparent hover:ring-border/60",
-                                      snap.isDragging && "ring-2 ring-primary/35 shadow-soft"
-                                    )}
-                                  >
-                                    <div className="flex items-start justify-between gap-2">
-                                      <div className="min-w-0">
-                                        <div className="font-semibold leading-tight truncate text-[15px]">
-                                          {lead.name}
-                                        </div>
-
-                                        <div className="text-xs text-muted mt-1">
-                                          {lead.city ? `${lead.city} • ` : ""}
-                                          {lead.source ?? "Sem origem"}
-                                        </div>
-
-                                        <div className="text-xs text-muted mt-1 truncate">
-                                          {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
-                                        </div>
-                                      </div>
-
-                                      <div className="flex gap-1 opacity-90">
-                                        <button
-                                          className="p-2 rounded-xl hover:bg-border/30 transition"
-                                          onClick={() => openEdit(lead)}
-                                          title="Editar"
-                                        >
-                                          <Pencil size={16} />
-                                        </button>
-                                        <button
-                                          className="p-2 rounded-xl hover:bg-border/30 transition"
-                                          onClick={() => deleteLead(lead.id)}
-                                          title="Excluir"
-                                        >
-                                          <Trash2 size={16} />
-                                        </button>
-                                      </div>
-                                    </div>
-
-                                    <div className="mt-4 flex items-center justify-between gap-3">
-                                      <div className="inline-flex items-center rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-semibold text-primary">
-                                        {moneyBRLFromCents(lead.valueCents)}
-                                      </div>
-
-                                      <div className="flex items-center gap-2">
-                                        {stage.isClosed && !lead.sale && (
-                                          <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
-                                            <BadgeCheck size={16} /> Dar baixa
-                                          </Button>
-                                        )}
-
-                                        {lead.sale && (
-                                          <div className="text-xs font-semibold text-accent whitespace-nowrap">
-                                            Baixado ✔
+                                  <div data-no-pan>
+                                    <Card
+                                      className={cn(
+                                        "group p-5 bg-bg/40 hover:bg-bg/55 transition",
+                                        "ring-1 ring-transparent hover:ring-border/60",
+                                        snap.isDragging && "ring-2 ring-primary/35 shadow-soft"
+                                      )}
+                                    >
+                                      <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                          <div className="font-semibold leading-tight truncate text-[15px]">
+                                            {lead.name}
                                           </div>
-                                        )}
+
+                                          <div className="text-xs text-muted mt-1">
+                                            {lead.city ? `${lead.city} • ` : ""}
+                                            {lead.source ?? "Sem origem"}
+                                          </div>
+
+                                          <div className="text-xs text-muted mt-1 truncate">
+                                            {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
+                                          </div>
+                                        </div>
+
+                                        <div className="flex gap-1 opacity-90">
+                                          <button
+                                            className="p-2 rounded-xl hover:bg-border/30 transition"
+                                            onClick={() => openEdit(lead)}
+                                            title="Editar"
+                                          >
+                                            <Pencil size={16} />
+                                          </button>
+                                          <button
+                                            className="p-2 rounded-xl hover:bg-border/30 transition"
+                                            onClick={() => deleteLead(lead.id)}
+                                            title="Excluir"
+                                          >
+                                            <Trash2 size={16} />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  </Card>
+
+                                      <div className="mt-4 flex items-center justify-between gap-3">
+                                        <div className="inline-flex items-center rounded-full bg-primary/15 px-3.5 py-1.5 text-sm font-semibold text-primary">
+                                          {moneyBRLFromCents(lead.valueCents)}
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                          {stage.isClosed && !lead.sale && (
+                                            <Button size="sm" variant="outline" onClick={() => markSold(lead)}>
+                                              <BadgeCheck size={16} /> Dar baixa
+                                            </Button>
+                                          )}
+
+                                          {lead.sale && (
+                                            <div className="text-xs font-semibold text-accent whitespace-nowrap">
+                                              Baixado ✔
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </Card>
+                                  </div>
                                 </div>
                               )}
                             </Draggable>
@@ -384,6 +397,9 @@ export default function Pipeline() {
                               Sem leads nesta etapa.
                             </div>
                           )}
+
+                          {/* Área extra vazia dentro da coluna (clicável para PAN) */}
+                          <div className="h-10" />
                         </div>
                       </div>
                     </div>
@@ -391,16 +407,15 @@ export default function Pipeline() {
                 )}
               </Droppable>
             ))}
+
+            {/* Faixa vazia (clicável) abaixo do board inteiro para PAN */}
+            <div className="w-[40px] shrink-0" />
           </div>
         </DragDropContext>
       </div>
 
       {/* Modal */}
-      <Modal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        title={editing ? "Editar Lead" : "Novo Lead"}
-      >
+      <Modal open={openModal} onClose={() => setOpenModal(false)} title={editing ? "Editar Lead" : "Novo Lead"}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Nome</div>
