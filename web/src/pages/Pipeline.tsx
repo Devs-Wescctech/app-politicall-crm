@@ -49,9 +49,20 @@ function centsToBRLInput(cents: number) {
   return String(n).replace(".", ",");
 }
 
-function cleanStr(v: any) {
+function trimOrUndef(v: any) {
   const s = String(v ?? "").trim();
-  return s.length ? s : null;
+  return s.length ? s : undefined;
+}
+
+function makeFallbackEmail(seed?: string) {
+  const base = String(seed ?? Date.now())
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 24);
+
+  const token = base.length ? base : String(Date.now());
+  // domínio com ponto => válido
+  return `noemail+${token}@politicall.local`;
 }
 
 function RightDrawer({
@@ -71,7 +82,10 @@ function RightDrawer({
 
   return (
     <div className="fixed inset-0 z-50">
+      {/* backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
+
+      {/* panel */}
       <div
         className={cn(
           "absolute right-0 top-0 h-full w-full max-w-[560px]",
@@ -122,7 +136,10 @@ function CenterDialog({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
       <div className="absolute inset-0 grid place-items-center p-4" onMouseDown={onClose}>
         <div
-          className={cn("w-full max-w-[520px] rounded-2xl border border-border bg-panel/95 shadow-2xl", "overflow-hidden")}
+          className={cn(
+            "w-full max-w-[520px] rounded-2xl border border-border bg-panel/95 shadow-2xl",
+            "overflow-hidden"
+          )}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="px-5 py-4 border-b border-border/60">
@@ -145,6 +162,7 @@ export default function Pipeline() {
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Drawer (Criar/Editar)
   const [openDrawer, setOpenDrawer] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
@@ -158,9 +176,10 @@ export default function Pipeline() {
     notes: "",
     valueCents: 0,
     stageId: "",
-    ownerId: "", // será enviado como null se vazio
+    ownerId: "",
   });
 
+  // Modais bonitos (Excluir / Baixar)
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [soldTarget, setSoldTarget] = useState<Lead | null>(null);
   const [soldAmount, setSoldAmount] = useState<string>("");
@@ -238,7 +257,10 @@ export default function Pipeline() {
     window.addEventListener("pointerup", onUp, { passive: false });
   }
 
-  // ===== filtros locais =====
+  // ===== Data (filtros locais) =====
+  // - baixado (sale) NÃO aparece
+  // - filtro por responsável
+  // - busca (inclui notas)
   const leadsVisible = useMemo(() => {
     const txt = q.trim().toLowerCase();
     return leads.filter((l) => {
@@ -251,7 +273,15 @@ export default function Pipeline() {
 
       if (!txt) return true;
 
-      const hay = [l.name ?? "", l.city ?? "", l.source ?? "", l.owner?.name ?? "", l.email ?? "", l.phone ?? "", l.notes ?? ""]
+      const hay = [
+        l.name ?? "",
+        l.city ?? "",
+        l.source ?? "",
+        l.owner?.name ?? "",
+        l.email ?? "",
+        l.phone ?? "",
+        l.notes ?? "",
+      ]
         .join(" ")
         .toLowerCase();
 
@@ -299,6 +329,9 @@ export default function Pipeline() {
 
   function openCreate() {
     setEditing(null);
+
+    const firstStageId = stages[0]?.id ?? "";
+
     setForm({
       name: "",
       phone: "",
@@ -307,9 +340,10 @@ export default function Pipeline() {
       source: "",
       notes: "",
       valueCents: 0,
-      stageId: stages[0]?.id ?? "",
-      ownerId: "", // sem automático; vazio = sem responsável (vai como null)
+      stageId: firstStageId,
+      ownerId: "",
     });
+
     setOpenDrawer(true);
   }
 
@@ -332,20 +366,41 @@ export default function Pipeline() {
   async function saveLead() {
     if (!form.name?.trim()) return;
 
+    const stageId = String(form.stageId ?? "").trim() || stages[0]?.id;
+    if (!stageId) {
+      alert("Nenhuma etapa (stage) encontrada para criar o lead.");
+      return;
+    }
+
     setSaving(true);
     try {
-      // ✅ MUITO IMPORTANTE: converte "" -> null para backend não rejeitar
-      const payload = {
+      // ✅ email padrão caso vazio (evita 400 no backend)
+      const emailInput = trimOrUndef(form.email);
+      const emailFallback = editing
+        ? makeFallbackEmail(editing.id)
+        : makeFallbackEmail(`${form.name}-${Date.now()}`);
+
+      const payload: any = {
         name: String(form.name ?? "").trim(),
-        phone: cleanStr(form.phone),
-        email: cleanStr(form.email), // ✅ não obrigatório
-        city: cleanStr(form.city),
-        source: cleanStr(form.source),
-        notes: cleanStr(form.notes),
+        stageId,
         valueCents: Number(form.valueCents ?? 0) || 0,
-        stageId: String(form.stageId ?? ""),
-        ownerId: cleanStr(form.ownerId), // ✅ se vazio vai null (evita erro de UUID)
+        email: emailInput ?? emailFallback, // ✅ sempre manda email válido
       };
+
+      const phone = trimOrUndef(form.phone);
+      if (phone) payload.phone = phone;
+
+      const city = trimOrUndef(form.city);
+      if (city) payload.city = city;
+
+      const source = trimOrUndef(form.source);
+      if (source) payload.source = source;
+
+      const notes = trimOrUndef(form.notes);
+      if (notes) payload.notes = notes;
+
+      const ownerId = trimOrUndef(form.ownerId);
+      if (ownerId) payload.ownerId = ownerId;
 
       if (editing) {
         await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) });
@@ -356,7 +411,6 @@ export default function Pipeline() {
       setOpenDrawer(false);
       await load();
     } catch (e: any) {
-      // ✅ agora aparece o erro (antes “sumia” e parecia que era o email)
       alert(e?.message ?? "Erro ao salvar lead.");
       console.error(e);
     } finally {
@@ -464,6 +518,7 @@ export default function Pipeline() {
 
       {/* Pan surface */}
       <div ref={panSurfaceRef} onPointerDownCapture={startPan} className={cn("flex-1 min-h-0", "cursor-grab")}>
+        {/* BOARD */}
         <div
           ref={boardRef}
           onWheel={onWheelBoard}
@@ -513,11 +568,8 @@ export default function Pipeline() {
                                               {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
                                             </div>
 
-                                            {/* ✅ (3) Notas aparecem no card */}
                                             {lead.notes && (
-                                              <div className="mt-2 text-xs text-muted/90 line-clamp-2">
-                                                {lead.notes}
-                                              </div>
+                                              <div className="mt-2 text-xs text-muted/90 line-clamp-2">{lead.notes}</div>
                                             )}
                                           </div>
 
@@ -615,6 +667,9 @@ export default function Pipeline() {
           <div>
             <div className="text-xs text-muted mb-1">Email</div>
             <Input value={form.email} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
+            <div className="text-xs text-muted mt-1">
+              Se ficar vazio, o sistema salva um e-mail padrão automaticamente.
+            </div>
           </div>
 
           <div>
@@ -652,7 +707,6 @@ export default function Pipeline() {
             </Select>
           </div>
 
-          {/* ✅ (2) Responsável sem “Automático” e sem texto extra */}
           <div>
             <div className="text-xs text-muted mb-1">Responsável</div>
             <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
