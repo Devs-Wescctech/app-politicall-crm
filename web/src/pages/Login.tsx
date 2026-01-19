@@ -2,9 +2,20 @@ import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
-import { useAuth } from "../auth/AuthContext";
 import { cn } from "../lib/cn";
-import { Lock, Mail, ShieldCheck, KanbanSquare, BadgeCheck, BarChart3, Users, ArrowRight } from "lucide-react";
+import { useAuth } from "../auth/AuthContext";
+import {
+  ShieldCheck,
+  KanbanSquare,
+  BadgeCheck,
+  BarChart3,
+  Users,
+  ArrowRight,
+  Sparkles,
+  Lock,
+  Mail,
+  CheckCircle2,
+} from "lucide-react";
 
 export default function Login() {
   const nav = useNavigate();
@@ -14,28 +25,29 @@ export default function Login() {
   const [password, setPassword] = useState("admin123");
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [logoOk, setLogoOk] = useState(true);
 
   const features = useMemo(
     () => [
       {
         icon: <KanbanSquare size={18} />,
-        title: "Pipeline (Kanban)",
-        desc: "Arraste leads por etapas, com pan horizontal e etapas esticadas.",
+        title: "Pipeline (Kanban) moderno",
+        desc: "Arraste leads por etapas com pan horizontal e layout esticado.",
       },
       {
         icon: <BadgeCheck size={18} />,
-        title: "Vendas finalizadas",
-        desc: "Baixe vendas com valor, controle de receita e ticket médio.",
+        title: "Baixa de venda e receita",
+        desc: "Controle de baixas com valor, ticket médio e conversão.",
       },
       {
         icon: <BarChart3 size={18} />,
-        title: "Dashboard",
-        desc: "KPIs, funil e série temporal com filtros por período.",
+        title: "Dashboard com visões",
+        desc: "KPIs, funil, série temporal e tendências do período.",
       },
       {
         icon: <Users size={18} />,
-        title: "Usuários e permissões",
-        desc: "Perfis ADMIN/MANAGER/AGENT e responsáveis por leads.",
+        title: "Usuários e responsáveis",
+        desc: "Perfis e responsáveis por lead para organização do time.",
       },
     ],
     []
@@ -57,43 +69,78 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
-      {/* Fundo sutil (mesmo padrão do AppShell) */}
+      {/* Fundo sutil (padrão do sistema / PoliticAll) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
-        <div className="absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_10%,rgba(16,162,148,.18),transparent_60%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(760px_420px_at_82%_18%,rgba(99,102,241,.10),transparent_55%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_10%,rgba(16,162,148,.22),transparent_60%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(760px_420px_at_82%_18%,rgba(99,102,241,.12),transparent_55%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,.03),transparent_28%,rgba(0,0,0,.22))]" />
       </div>
 
       <div className="min-h-screen w-full grid lg:grid-cols-2">
-        {/* ESQUERDA: branding + funcionalidades */}
-        <div className="hidden lg:flex relative overflow-hidden border-r border-border/70">
-          <div className="absolute inset-0 bg-panel/40 backdrop-blur" />
+        {/* ESQUERDA: Branding premium + funcionalidades */}
+        <div className="hidden lg:block relative overflow-hidden border-r border-border/70">
+          {/* camada “glass” */}
+          <div className="absolute inset-0 bg-panel/35 backdrop-blur" />
+
+          {/* glows mais fortes (cor PoliticAll) */}
+          <div className="pointer-events-none absolute -top-20 -left-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,162,148,.26),transparent_62%)]" />
+          <div className="pointer-events-none absolute -bottom-24 -right-20 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,.18),transparent_62%)]" />
+
           <div className="relative z-10 flex flex-col h-full w-full p-10">
-            {/* Logo */}
+            {/* Logo (igual menu) */}
             <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-2xl bg-primary/15 border border-primary/25 grid place-items-center">
-                <ShieldCheck size={22} className="text-primary" />
+              <div className="h-[64px] w-[220px] rounded-2xl border border-border/70 bg-white/5 flex items-center justify-center overflow-hidden">
+                {logoOk ? (
+                  <img
+                    src="/logo.png"
+                    alt="PoliticAll"
+                    className="w-auto max-w-[200px] object-contain select-none"
+                    style={{ height: 44, display: "block" }}
+                    onError={() => setLogoOk(false)}
+                  />
+                ) : (
+                  <div className="h-[44px] w-[160px] rounded-xl bg-white/5 border border-border/70" />
+                )}
               </div>
 
               <div className="min-w-0">
+                <div className="text-xs text-muted">Bem-vindo ao</div>
                 <div className="text-2xl font-semibold tracking-tight">PoliticAll CRM</div>
-                <div className="text-sm text-muted">Pipeline • Vendas • Dashboard • Usuários</div>
+              </div>
+
+              <div className="ml-auto hidden xl:flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
+                <Sparkles size={14} className="text-primary" />
+                Interface moderna
               </div>
             </div>
 
-            {/* Hero */}
-            <div className="mt-10">
-              <div className="text-3xl font-semibold tracking-tight leading-tight">
-                Controle de leads em um pipeline moderno, rápido e bonito.
+            {/* Headline */}
+            <div className="mt-12 max-w-xl">
+              <div className="text-4xl font-semibold tracking-tight leading-[1.08]">
+                Pipeline, vendas e visão do funil em um CRM rápido e bonito.
               </div>
-              <div className="mt-3 text-sm text-muted max-w-xl">
-                Tenha visão de funil, receita, conversão e responsáveis. Uma experiência de uso atual, com layout “esticado”
-                e navegação fluida.
+              <div className="mt-4 text-sm text-muted leading-relaxed">
+                Tudo no mesmo padrão visual do PoliticAll: cards com glass, bordas suaves, KPIs claros e navegação fluida.
+              </div>
+
+              <div className="mt-6 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
+                  <CheckCircle2 size={14} className="text-primary" />
+                  Kanban com pan horizontal
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
+                  <CheckCircle2 size={14} className="text-primary" />
+                  Baixa de venda padrão
+                </span>
+                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
+                  <CheckCircle2 size={14} className="text-primary" />
+                  Dashboard com visões
+                </span>
               </div>
             </div>
 
-            {/* Lista de features */}
-            <div className="mt-10 grid grid-cols-1 gap-3">
+            {/* Features */}
+            <div className="mt-10 grid grid-cols-1 gap-3 max-w-xl">
               {features.map((f) => (
                 <div
                   key={f.title}
@@ -112,34 +159,34 @@ export default function Login() {
               ))}
             </div>
 
-            <div className="mt-auto pt-8 text-xs text-muted">
-              © {new Date().getFullYear()} PoliticAll CRM • Ambiente seguro • Autenticação JWT
+            <div className="mt-auto pt-10 text-xs text-muted flex items-center gap-2">
+              <ShieldCheck size={14} className="text-primary" />
+              © {new Date().getFullYear()} PoliticAll CRM • Autenticação JWT • Ambiente seguro
             </div>
           </div>
         </div>
 
         {/* DIREITA: formulário */}
         <div className="flex items-center justify-center p-4 md:p-10">
-          <div className="w-full max-w-[460px]">
-            {/* Logo no mobile */}
+          <div className="w-full max-w-[480px]">
+            {/* Logo mobile */}
             <div className="lg:hidden mb-6 rounded-2xl border border-border/70 bg-panel/60 backdrop-blur p-4 shadow-soft">
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 rounded-2xl bg-primary/15 border border-primary/25 grid place-items-center">
                   <ShieldCheck size={20} className="text-primary" />
                 </div>
-                <div>
-                  <div className="text-lg font-semibold">PoliticAll CRM</div>
+                <div className="min-w-0">
+                  <div className="text-lg font-semibold truncate">PoliticAll CRM</div>
                   <div className="text-sm text-muted">Acesse para entrar no painel</div>
                 </div>
               </div>
             </div>
 
+            {/* Card do login */}
             <div className="rounded-2xl border border-border/70 bg-panel/60 backdrop-blur shadow-soft overflow-hidden">
               <div className="p-6 border-b border-border/60">
                 <div className="text-2xl font-semibold tracking-tight">Entrar</div>
-                <div className="mt-1 text-sm text-muted">
-                  Use seu e-mail e senha para acessar o dashboard.
-                </div>
+                <div className="mt-1 text-sm text-muted">Use seu e-mail e senha para acessar.</div>
               </div>
 
               <form className="p-6 space-y-4" onSubmit={onSubmit}>
@@ -198,19 +245,14 @@ export default function Login() {
               </form>
 
               <div className="px-6 py-4 border-t border-border/60 bg-panel/30 text-xs text-muted">
-                Dica: use usuários com perfil <span className="text-text font-semibold">ADMIN</span> para configurar permissões e responsáveis.
+                Dica: use <span className="text-text font-semibold">ADMIN</span> para configurar usuários e permissões.
               </div>
             </div>
 
-            {/* pequeno “badge” de status */}
             <div className="mt-4 flex items-center justify-center">
-              <div
-                className={cn(
-                  "inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-4 py-2 text-xs text-muted"
-                )}
-              >
+              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-4 py-2 text-xs text-muted">
                 <ShieldCheck size={14} className="text-primary" />
-                Login seguro • Interface moderna
+                PoliticAll • UI atual • Acesso seguro
               </div>
             </div>
           </div>
