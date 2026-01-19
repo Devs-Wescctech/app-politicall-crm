@@ -37,8 +37,8 @@ type UserRow = {
 function parseBRLToCents(v: string | number) {
   const s = String(v ?? "")
     .trim()
-    .replace(/\./g, "") // remove separador de milhar se vier (ex: 1.234,56)
-    .replace(",", "."); // decimal BR -> .
+    .replace(/\./g, "")
+    .replace(",", ".");
   const n = Number(s);
   if (!Number.isFinite(n)) return 0;
   return Math.max(0, Math.round(n * 100));
@@ -46,8 +46,12 @@ function parseBRLToCents(v: string | number) {
 
 function centsToBRLInput(cents: number) {
   const n = Number(cents ?? 0) / 100;
-  // mostra sem forçar 2 casas para não ficar “brigando” com digitação
   return String(n).replace(".", ",");
+}
+
+function cleanStr(v: any) {
+  const s = String(v ?? "").trim();
+  return s.length ? s : null;
 }
 
 function RightDrawer({
@@ -67,10 +71,7 @@ function RightDrawer({
 
   return (
     <div className="fixed inset-0 z-50">
-      {/* backdrop */}
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
-
-      {/* panel */}
       <div
         className={cn(
           "absolute right-0 top-0 h-full w-full max-w-[560px]",
@@ -121,10 +122,7 @@ function CenterDialog({
       <div className="absolute inset-0 bg-black/50 backdrop-blur-[2px]" onMouseDown={onClose} />
       <div className="absolute inset-0 grid place-items-center p-4" onMouseDown={onClose}>
         <div
-          className={cn(
-            "w-full max-w-[520px] rounded-2xl border border-border bg-panel/95 shadow-2xl",
-            "overflow-hidden"
-          )}
+          className={cn("w-full max-w-[520px] rounded-2xl border border-border bg-panel/95 shadow-2xl", "overflow-hidden")}
           onMouseDown={(e) => e.stopPropagation()}
         >
           <div className="px-5 py-4 border-b border-border/60">
@@ -143,13 +141,13 @@ export default function Pipeline() {
   const [stages, setStages] = useState<Stage[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [q, setQ] = useState("");
-  const [ownerFilter, setOwnerFilter] = useState<string>(""); // filtro por responsável
+  const [ownerFilter, setOwnerFilter] = useState<string>("");
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Drawer (Criar/Editar)
   const [openDrawer, setOpenDrawer] = useState(false);
   const [editing, setEditing] = useState<Lead | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const [form, setForm] = useState<any>({
     name: "",
@@ -158,12 +156,11 @@ export default function Pipeline() {
     city: "",
     source: "",
     notes: "",
-    valueCents: 0, // mantém em centavos (API)
+    valueCents: 0,
     stageId: "",
-    ownerId: "",
+    ownerId: "", // será enviado como null se vazio
   });
 
-  // Modais bonitos (Excluir / Baixar)
   const [deleteTarget, setDeleteTarget] = useState<Lead | null>(null);
   const [soldTarget, setSoldTarget] = useState<Lead | null>(null);
   const [soldAmount, setSoldAmount] = useState<string>("");
@@ -174,9 +171,7 @@ export default function Pipeline() {
 
   // ===== wheel: vertical -> horizontal =====
   function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
-    // trackpad horizontal: mantém
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) return;
-
     e.preventDefault();
     const el = boardRef.current;
     if (!el) return;
@@ -194,7 +189,6 @@ export default function Pipeline() {
     panSurfaceRef.current?.classList.remove("cursor-grabbing");
   }
 
-  // listener no panSurface (wrapper maior) e mexe no scrollLeft do board
   function startPan(e: React.PointerEvent<HTMLDivElement>) {
     if (e.pointerType !== "mouse") return;
     if (e.button !== 0) return;
@@ -204,10 +198,7 @@ export default function Pipeline() {
 
     const target = e.target as HTMLElement;
 
-    // Não iniciar pan em elementos interativos
     if (target.closest("button, a, input, textarea, select, option, label")) return;
-
-    // Não iniciar pan em cima de card (pra não brigar com DnD)
     if (target.closest("[data-pan-block='true']")) return;
 
     isPanningRef.current = true;
@@ -247,14 +238,11 @@ export default function Pipeline() {
     window.addEventListener("pointerup", onUp, { passive: false });
   }
 
-  // ===== Data (filtros locais) =====
-  // - baixado (sale) NÃO aparece
-  // - filtro por responsável
-  // - busca
+  // ===== filtros locais =====
   const leadsVisible = useMemo(() => {
     const txt = q.trim().toLowerCase();
     return leads.filter((l) => {
-      if (l.sale) return false; // baixado some do kanban
+      if (l.sale) return false;
 
       if (ownerFilter) {
         const oid = l.owner?.id ?? "";
@@ -263,7 +251,7 @@ export default function Pipeline() {
 
       if (!txt) return true;
 
-      const hay = [l.name ?? "", l.city ?? "", l.source ?? "", l.owner?.name ?? "", l.email ?? "", l.phone ?? ""]
+      const hay = [l.name ?? "", l.city ?? "", l.source ?? "", l.owner?.name ?? "", l.email ?? "", l.phone ?? "", l.notes ?? ""]
         .join(" ")
         .toLowerCase();
 
@@ -320,7 +308,7 @@ export default function Pipeline() {
       notes: "",
       valueCents: 0,
       stageId: stages[0]?.id ?? "",
-      ownerId: "",
+      ownerId: "", // sem automático; vazio = sem responsável (vai como null)
     });
     setOpenDrawer(true);
   }
@@ -342,17 +330,38 @@ export default function Pipeline() {
   }
 
   async function saveLead() {
-    // (2) somente nome obrigatório
     if (!form.name?.trim()) return;
 
-    if (editing) {
-      await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(form) });
-    } else {
-      await api(`/leads`, { method: "POST", body: JSON.stringify(form) });
-    }
+    setSaving(true);
+    try {
+      // ✅ MUITO IMPORTANTE: converte "" -> null para backend não rejeitar
+      const payload = {
+        name: String(form.name ?? "").trim(),
+        phone: cleanStr(form.phone),
+        email: cleanStr(form.email), // ✅ não obrigatório
+        city: cleanStr(form.city),
+        source: cleanStr(form.source),
+        notes: cleanStr(form.notes),
+        valueCents: Number(form.valueCents ?? 0) || 0,
+        stageId: String(form.stageId ?? ""),
+        ownerId: cleanStr(form.ownerId), // ✅ se vazio vai null (evita erro de UUID)
+      };
 
-    setOpenDrawer(false);
-    await load();
+      if (editing) {
+        await api(`/leads/${editing.id}`, { method: "PUT", body: JSON.stringify(payload) });
+      } else {
+        await api(`/leads`, { method: "POST", body: JSON.stringify(payload) });
+      }
+
+      setOpenDrawer(false);
+      await load();
+    } catch (e: any) {
+      // ✅ agora aparece o erro (antes “sumia” e parecia que era o email)
+      alert(e?.message ?? "Erro ao salvar lead.");
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   }
 
   function askDelete(lead: Lead) {
@@ -361,28 +370,37 @@ export default function Pipeline() {
 
   async function confirmDelete() {
     if (!deleteTarget) return;
-    await api(`/leads/${deleteTarget.id}`, { method: "DELETE" });
-    setDeleteTarget(null);
-    await load();
+    try {
+      await api(`/leads/${deleteTarget.id}`, { method: "DELETE" });
+      setDeleteTarget(null);
+      await load();
+    } catch (e: any) {
+      alert(e?.message ?? "Erro ao excluir.");
+      console.error(e);
+    }
   }
 
   function askSold(lead: Lead) {
     setSoldTarget(lead);
-    setSoldAmount(String((lead.valueCents ?? 0) / 100).replace(".", ",")); // pré-preenche em R$
+    setSoldAmount(String((lead.valueCents ?? 0) / 100).replace(".", ","));
   }
 
   async function confirmSold() {
     if (!soldTarget) return;
-    const cents = parseBRLToCents(soldAmount);
+    try {
+      const cents = parseBRLToCents(soldAmount);
+      await api(`/leads/${soldTarget.id}/mark-sold`, {
+        method: "POST",
+        body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
+      });
 
-    await api(`/leads/${soldTarget.id}/mark-sold`, {
-      method: "POST",
-      body: JSON.stringify({ amountCents: cents, planName: "Plano padrão" }),
-    });
-
-    setSoldTarget(null);
-    setSoldAmount("");
-    await load(); // some do kanban porque agora sale existe
+      setSoldTarget(null);
+      setSoldAmount("");
+      await load();
+    } catch (e: any) {
+      alert(e?.message ?? "Erro ao dar baixa.");
+      console.error(e);
+    }
   }
 
   async function onDragEnd(result: DropResult) {
@@ -392,14 +410,13 @@ export default function Pipeline() {
 
     const stageId = destination.droppableId;
 
-    // otimista
     setLeads((prev) => prev.map((l) => (l.id === draggableId ? ({ ...l, stageId } as any) : l)));
 
     try {
       await api(`/leads/${draggableId}/move`, { method: "POST", body: JSON.stringify({ stageId }) });
       await load();
     } catch (e: any) {
-      alert(e.message);
+      alert(e?.message ?? "Erro ao mover lead.");
       await load();
     }
   }
@@ -421,7 +438,6 @@ export default function Pipeline() {
               <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar lead..." />
             </div>
 
-            {/* filtro por responsável */}
             <div className="w-full md:w-[260px]">
               <Select value={ownerFilter} onChange={(e) => setOwnerFilter(e.target.value)}>
                 <option value="">Todos responsáveis</option>
@@ -448,7 +464,6 @@ export default function Pipeline() {
 
       {/* Pan surface */}
       <div ref={panSurfaceRef} onPointerDownCapture={startPan} className={cn("flex-1 min-h-0", "cursor-grab")}>
-        {/* BOARD */}
         <div
           ref={boardRef}
           onWheel={onWheelBoard}
@@ -466,12 +481,10 @@ export default function Pipeline() {
                           snapshot.isDraggingOver && "ring-2 ring-primary/35"
                         )}
                       >
-                        {/* Column header */}
                         <div className="sticky top-0 z-10 border-b border-border bg-panel/80 px-4 py-3 backdrop-blur">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
                               <div className="truncate font-semibold">{stage.name}</div>
-                              {/* (4) texto de fechados removido */}
                             </div>
                             <div className="shrink-0 rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary">
                               {filteredLeads[stage.id]?.length ?? 0}
@@ -479,7 +492,6 @@ export default function Pipeline() {
                           </div>
                         </div>
 
-                        {/* Cards */}
                         <div className="flex-1 overflow-y-auto">
                           <div className="space-y-3 p-4 min-h-full">
                             {(filteredLeads[stage.id] ?? []).map((lead, idx) => (
@@ -491,14 +503,24 @@ export default function Pipeline() {
                                         <div className="flex items-start justify-between gap-2">
                                           <div className="min-w-0">
                                             <div className="font-semibold leading-tight truncate">{lead.name}</div>
+
                                             <div className="text-xs text-muted">
                                               {lead.city ? `${lead.city} • ` : ""}
                                               {lead.source ?? "Sem origem"}
                                             </div>
+
                                             <div className="text-xs text-muted mt-1 truncate">
                                               {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
                                             </div>
+
+                                            {/* ✅ (3) Notas aparecem no card */}
+                                            {lead.notes && (
+                                              <div className="mt-2 text-xs text-muted/90 line-clamp-2">
+                                                {lead.notes}
+                                              </div>
+                                            )}
                                           </div>
+
                                           <div className="flex gap-1">
                                             <button
                                               className="p-2 rounded-xl hover:bg-border/30"
@@ -522,7 +544,6 @@ export default function Pipeline() {
                                             {moneyBRLFromCents(lead.valueCents)}
                                           </div>
 
-                                          {/* (1) Baixado: ícone com mesmo badge/layout (não aparece no kanban por regra, mas fica pronto) */}
                                           {lead.sale && (
                                             <span
                                               className="inline-flex items-center justify-center rounded-full bg-primary/15 px-3 py-1 text-sm font-semibold text-primary"
@@ -532,7 +553,6 @@ export default function Pipeline() {
                                             </span>
                                           )}
 
-                                          {/* Baixa */}
                                           {stage.isClosed && !lead.sale && (
                                             <Button size="sm" variant="outline" onClick={() => askSold(lead)}>
                                               <BadgeCheck size={16} /> Dar baixa
@@ -572,7 +592,9 @@ export default function Pipeline() {
             <Button variant="ghost" onClick={() => setOpenDrawer(false)}>
               Cancelar
             </Button>
-            <Button onClick={saveLead}>{editing ? "Salvar" : "Criar"}</Button>
+            <Button onClick={saveLead} disabled={saving}>
+              {saving ? "Salvando..." : editing ? "Salvar" : "Criar"}
+            </Button>
           </div>
         }
       >
@@ -605,7 +627,6 @@ export default function Pipeline() {
             <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
           </div>
 
-          {/* (3) VALOR EM R$ (reais) */}
           <div>
             <div className="text-xs text-muted mb-1">Valor (R$)</div>
             <Input
@@ -631,17 +652,17 @@ export default function Pipeline() {
             </Select>
           </div>
 
+          {/* ✅ (2) Responsável sem “Automático” e sem texto extra */}
           <div>
-            <div className="text-xs text-muted mb-1">Responsável (se permitido)</div>
+            <div className="text-xs text-muted mb-1">Responsável</div>
             <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
-              <option value="">Automático</option>
+              <option value="">Sem responsável</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   {u.name} ({u.role})
                 </option>
               ))}
             </Select>
-            <div className="text-xs text-muted mt-1">AGENT sempre cria/edita como ele mesmo.</div>
           </div>
 
           <div className="md:col-span-2">
