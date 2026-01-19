@@ -57,7 +57,7 @@ export default function Pipeline() {
     ownerId: "",
   });
 
-  // Scroll horizontal do board com mouse wheel (remove necessidade da barra embaixo)
+  // Scroll horizontal do board com mouse wheel + click&drag (sem barra inferior)
   const boardRef = React.useRef<HTMLDivElement | null>(null);
 
   function onWheelBoard(e: React.WheelEvent<HTMLDivElement>) {
@@ -68,6 +68,45 @@ export default function Pipeline() {
     const el = boardRef.current;
     if (!el) return;
     el.scrollLeft += e.deltaY;
+  }
+
+  const isPanningRef = React.useRef(false);
+  const panStartXRef = React.useRef(0);
+  const panScrollLeftRef = React.useRef(0);
+
+  function startPan(e: React.MouseEvent<HTMLDivElement>) {
+    // só botão esquerdo
+    if (e.button !== 0) return;
+
+    const el = boardRef.current;
+    if (!el) return;
+
+    // não iniciar pan se clicou em algo interativo
+    const target = e.target as HTMLElement;
+    if (target.closest("button, a, input, textarea, select, option, label")) return;
+
+    isPanningRef.current = true;
+    panStartXRef.current = e.pageX;
+    panScrollLeftRef.current = el.scrollLeft;
+
+    el.classList.add("cursor-grabbing");
+  }
+
+  function movePan(e: React.MouseEvent<HTMLDivElement>) {
+    if (!isPanningRef.current) return;
+
+    const el = boardRef.current;
+    if (!el) return;
+
+    e.preventDefault();
+    const dx = e.pageX - panStartXRef.current;
+    el.scrollLeft = panScrollLeftRef.current - dx;
+  }
+
+  function endPan() {
+    const el = boardRef.current;
+    if (el) el.classList.remove("cursor-grabbing");
+    isPanningRef.current = false;
   }
 
   const filteredLeads = useMemo(() => {
@@ -221,11 +260,15 @@ export default function Pipeline() {
 
       {loading && <div className="text-sm text-muted">Carregando...</div>}
 
-      {/* Board (scroll horizontal com mouse wheel, sem scrollbar) */}
+      {/* Board (scroll horizontal com mouse wheel + click&drag, sem scrollbar) */}
       <div
         ref={boardRef}
         onWheel={onWheelBoard}
-        className="overflow-x-auto no-scrollbar scroll-smooth pb-3"
+        onMouseDown={startPan}
+        onMouseMove={movePan}
+        onMouseUp={endPan}
+        onMouseLeave={endPan}
+        className="overflow-x-auto no-scrollbar scroll-smooth pb-3 cursor-grab select-none"
       >
         <DragDropContext onDragEnd={onDragEnd}>
           <div className="flex gap-5 min-w-[1180px]">
@@ -287,7 +330,6 @@ export default function Pipeline() {
                                         </div>
 
                                         <div className="text-xs text-muted mt-1 truncate">
-s
                                           {lead.owner?.name ? `Resp: ${lead.owner.name}` : "Sem responsável"}
                                         </div>
                                       </div>
@@ -352,31 +394,42 @@ s
         </DragDropContext>
       </div>
 
-      <Modal
-        open={openModal}
-        onClose={() => setOpenModal(false)}
-        title={editing ? "Editar Lead" : "Novo Lead"}
-      >
+      <Modal open={openModal} onClose={() => setOpenModal(false)} title={editing ? "Editar Lead" : "Novo Lead"}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div className="md:col-span-2">
             <div className="text-xs text-muted mb-1">Nome</div>
-            <Input value={form.name} onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))} />
+            <Input
+              value={form.name}
+              onChange={(e) => setForm((f: any) => ({ ...f, name: e.target.value }))}
+            />
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Telefone</div>
-            <Input value={form.phone} onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))} />
+            <Input
+              value={form.phone}
+              onChange={(e) => setForm((f: any) => ({ ...f, phone: e.target.value }))}
+            />
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Email</div>
-            <Input value={form.email} onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))} />
+            <Input
+              value={form.email}
+              onChange={(e) => setForm((f: any) => ({ ...f, email: e.target.value }))}
+            />
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Cidade</div>
-            <Input value={form.city} onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))} />
+            <Input
+              value={form.city}
+              onChange={(e) => setForm((f: any) => ({ ...f, city: e.target.value }))}
+            />
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Origem</div>
-            <Input value={form.source} onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))} />
+            <Input
+              value={form.source}
+              onChange={(e) => setForm((f: any) => ({ ...f, source: e.target.value }))}
+            />
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Valor (centavos)</div>
@@ -389,7 +442,10 @@ s
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Stage</div>
-            <Select value={form.stageId} onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}>
+            <Select
+              value={form.stageId}
+              onChange={(e) => setForm((f: any) => ({ ...f, stageId: e.target.value }))}
+            >
               {stages.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -399,7 +455,10 @@ s
           </div>
           <div>
             <div className="text-xs text-muted mb-1">Responsável (se permitido)</div>
-            <Select value={form.ownerId} onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}>
+            <Select
+              value={form.ownerId}
+              onChange={(e) => setForm((f: any) => ({ ...f, ownerId: e.target.value }))}
+            >
               <option value="">Automático</option>
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
