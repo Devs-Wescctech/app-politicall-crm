@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Input } from "../components/Input";
 import { Button } from "../components/Button";
@@ -21,7 +21,24 @@ export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
 
-  // ✅ 4) Retirar login "automático": campos começam vazios
+  // ✅ Tema SEMPRE dark no Login (evita ficar branco/alternando)
+  useEffect(() => {
+    const root = document.documentElement;
+    const hadDark = root.classList.contains("dark");
+    root.classList.add("dark");
+
+    // (opcional) melhora consistência em alguns browsers
+    const meta = document.querySelector('meta[name="color-scheme"]') as HTMLMetaElement | null;
+    const prevMeta = meta?.content;
+    if (meta) meta.content = "dark";
+
+    return () => {
+      if (!hadDark) root.classList.remove("dark");
+      if (meta && prevMeta != null) meta.content = prevMeta;
+    };
+  }, []);
+
+  // ✅ sem login automático
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
@@ -71,21 +88,19 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
-      {/* Fundo sutil (padrão do sistema / PoliticAll) */}
+      {/* Fundo sutil (padrão do PoliticAll) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_10%,rgba(16,162,148,.22),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(760px_420px_at_82%_18%,rgba(99,102,241,.12),transparent_55%)]" />
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,.03),transparent_28%,rgba(0,0,0,.22))]" />
       </div>
 
-      {/* ✅ 1) Banner mais largo: 7/12 vs 5/12 */}
+      {/* Banner maior: 7/12 vs 5/12 */}
       <div className="min-h-screen w-full grid lg:grid-cols-12">
-        {/* ESQUERDA: Branding premium + funcionalidades */}
+        {/* ESQUERDA */}
         <div className="hidden lg:block relative overflow-hidden border-r border-border/70 lg:col-span-7">
-          {/* camada “glass” */}
           <div className="absolute inset-0 bg-panel/35 backdrop-blur" />
 
-          {/* glows PoliticAll */}
           <div className="pointer-events-none absolute -top-20 -left-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,162,148,.26),transparent_62%)]" />
           <div className="pointer-events-none absolute -bottom-24 -right-20 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,.18),transparent_62%)]" />
 
@@ -112,7 +127,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Headline */}
             <div className="mt-12 max-w-2xl">
               <div className="text-4xl font-semibold tracking-tight leading-[1.08]">
                 Pipeline, vendas e visão do funil em um CRM rápido e bonito.
@@ -137,7 +151,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Features */}
             <div className="mt-10 grid grid-cols-1 gap-3 max-w-2xl">
               {features.map((f) => (
                 <div
@@ -164,7 +177,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* DIREITA: formulário */}
+        {/* DIREITA */}
         <div className="flex items-center justify-center p-4 md:p-10 lg:col-span-5">
           <div className="w-full max-w-[480px]">
             {/* Logo mobile */}
@@ -180,7 +193,6 @@ export default function Login() {
               </div>
             </div>
 
-            {/* Card do login */}
             <div className="rounded-2xl border border-border/70 bg-panel/60 backdrop-blur shadow-soft overflow-hidden">
               <div className="p-6 border-b border-border/60">
                 <div className="text-2xl font-semibold tracking-tight">Entrar</div>
@@ -235,9 +247,6 @@ export default function Login() {
                   </span>
                 </Button>
               </form>
-
-              {/* ✅ 3) Removido: seed e dica ADMIN */}
-              {/* ✅ removido footer com texto extra */}
             </div>
 
             <div className="mt-4 flex items-center justify-center">
