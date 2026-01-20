@@ -21,7 +21,7 @@ export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
 
-  // ✅ mantém tema dark (para o sistema), mas a coluna da direita será "tom de branco"
+  // mantém tema dark (para o app), mas a coluna direita será clara
   useEffect(() => {
     const root = document.documentElement;
     const hadDark = root.classList.contains("dark");
@@ -39,7 +39,6 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [logoOk, setLogoOk] = useState(true);
@@ -86,7 +85,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-bg text-text">
-      {/* Fundo sutil */}
+      {/* Fundo geral (dark) */}
       <div className="pointer-events-none fixed inset-0 -z-10">
         <div className="absolute inset-0 bg-[radial-gradient(900px_520px_at_18%_10%,rgba(16,162,148,.22),transparent_60%)]" />
         <div className="absolute inset-0 bg-[radial-gradient(760px_420px_at_82%_18%,rgba(99,102,241,.12),transparent_55%)]" />
@@ -94,10 +93,9 @@ export default function Login() {
       </div>
 
       <div className="min-h-screen w-full grid lg:grid-cols-12">
-        {/* ESQUERDA */}
+        {/* ESQUERDA (dark) */}
         <div className="hidden lg:block relative overflow-hidden border-r border-border/70 lg:col-span-7">
           <div className="absolute inset-0 bg-panel/35 backdrop-blur" />
-
           <div className="pointer-events-none absolute -top-20 -left-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,162,148,.26),transparent_62%)]" />
           <div className="pointer-events-none absolute -bottom-24 -right-20 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,.18),transparent_62%)]" />
 
@@ -127,8 +125,6 @@ export default function Login() {
               <div className="text-4xl font-semibold tracking-tight leading-[1.08]">
                 Pipeline, vendas e visão do funil em um CRM rápido e bonito.
               </div>
-
-              {/* ✅ removido o texto: "Tudo no padrão visual do PoliticAll..." */}
 
               <div className="mt-6 flex flex-wrap gap-2">
                 <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
@@ -172,16 +168,22 @@ export default function Login() {
           </div>
         </div>
 
-        {/* DIREITA (tom de branco) */}
-        <div className="lg:col-span-5 flex items-center justify-center p-4 md:p-10">
-          <div className="w-full max-w-[480px]">
-            <div
-              className={cn(
-                "rounded-3xl border shadow-[0_22px_60px_rgba(0,0,0,.28)] overflow-hidden",
-                // ✅ tom branco "clean" mantendo harmonia com o sistema
-                "bg-white/95 border-black/10"
-              )}
-            >
+        {/* DIREITA (coluna inteira em tons de branco) */}
+        <div
+          className={cn(
+            "lg:col-span-5 relative",
+            "flex items-center justify-center p-4 md:p-10",
+            // ✅ fundo claro da coluna inteira
+            "bg-white/90",
+            // gradiente leve pra não ficar “chapado”
+            "bg-[radial-gradient(900px_520px_at_40%_20%,rgba(16,162,148,.08),transparent_60%)]"
+          )}
+        >
+          {/* sombra suave na divisão com o dark */}
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-10 bg-[linear-gradient(to_right,rgba(0,0,0,.18),transparent)]" />
+
+          <div className="w-full max-w-[520px]">
+            <div className="rounded-3xl border shadow-[0_22px_60px_rgba(0,0,0,.25)] overflow-hidden bg-white border-black/10">
               <div className="p-6 border-b border-black/10">
                 <div className="text-2xl font-semibold tracking-tight text-[#0b1220]">Entrar</div>
                 <div className="mt-1 text-sm text-[#334155]">Use seu e-mail e senha para acessar.</div>
@@ -200,7 +202,6 @@ export default function Login() {
                       placeholder="email@..."
                       className={cn(
                         "pl-10",
-                        // força o Input ficar claro aqui (sem depender do tema global)
                         "bg-white text-[#0b1220] border-black/10 placeholder:text-[#94a3b8] focus:ring-2 focus:ring-primary/30"
                       )}
                       autoComplete="username"
@@ -244,8 +245,9 @@ export default function Login() {
               </form>
             </div>
 
+            {/* badge também claro */}
             <div className="mt-4 flex items-center justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-4 py-2 text-xs text-muted">
+              <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-[#475569] shadow-sm">
                 <ShieldCheck size={14} className="text-primary" />
                 PoliticAll • UI atual • Acesso seguro
               </div>
