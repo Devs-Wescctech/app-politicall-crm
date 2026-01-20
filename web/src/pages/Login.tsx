@@ -11,17 +11,15 @@ import {
   BarChart3,
   Users,
   ArrowRight,
-  Sparkles,
   Lock,
   Mail,
-  CheckCircle2,
 } from "lucide-react";
 
 export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
 
-  // mantém tema dark (para o app), mas a coluna direita será clara
+  // Mantém o tema dark (pro app), mas a coluna direita fica clara
   useEffect(() => {
     const root = document.documentElement;
     const hadDark = root.classList.contains("dark");
@@ -46,22 +44,22 @@ export default function Login() {
   const features = useMemo(
     () => [
       {
-        icon: <KanbanSquare size={18} />,
+        icon: <KanbanSquare size={18} className="text-primary" />,
         title: "Pipeline (Kanban) moderno",
         desc: "Arraste leads por etapas com pan horizontal e layout esticado.",
       },
       {
-        icon: <BadgeCheck size={18} />,
+        icon: <BadgeCheck size={18} className="text-primary" />,
         title: "Baixa de venda e receita",
         desc: "Controle de baixas com valor, ticket médio e conversão.",
       },
       {
-        icon: <BarChart3 size={18} />,
+        icon: <BarChart3 size={18} className="text-primary" />,
         title: "Dashboard com visões",
         desc: "KPIs, funil, série temporal e tendências do período.",
       },
       {
-        icon: <Users size={18} />,
+        icon: <Users size={18} className="text-primary" />,
         title: "Usuários e responsáveis",
         desc: "Perfis e responsáveis por lead para organização do time.",
       },
@@ -93,13 +91,15 @@ export default function Login() {
       </div>
 
       <div className="min-h-screen w-full grid lg:grid-cols-12">
-        {/* ESQUERDA (dark) */}
+        {/* ESQUERDA */}
         <div className="hidden lg:block relative overflow-hidden border-r border-border/70 lg:col-span-7">
           <div className="absolute inset-0 bg-panel/35 backdrop-blur" />
+
           <div className="pointer-events-none absolute -top-20 -left-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,162,148,.26),transparent_62%)]" />
           <div className="pointer-events-none absolute -bottom-24 -right-20 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,.18),transparent_62%)]" />
 
           <div className="relative z-10 flex flex-col h-full w-full p-10">
+            {/* Logo */}
             <div className="flex items-center gap-4">
               <div className="h-[64px] w-[240px] rounded-2xl border border-border/70 bg-white/5 flex items-center justify-center overflow-hidden">
                 {logoOk ? (
@@ -114,34 +114,18 @@ export default function Login() {
                   <div className="h-[44px] w-[180px] rounded-xl bg-white/5 border border-border/70" />
                 )}
               </div>
-
-              <div className="ml-auto hidden xl:flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
-                <Sparkles size={14} className="text-primary" />
-                Interface moderna
-              </div>
             </div>
 
+            {/* Headline */}
             <div className="mt-12 max-w-2xl">
               <div className="text-4xl font-semibold tracking-tight leading-[1.08]">
                 Pipeline, vendas e visão do funil em um CRM rápido e bonito.
               </div>
-
-              <div className="mt-6 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
-                  <CheckCircle2 size={14} className="text-primary" />
-                  Kanban com pan horizontal
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
-                  <CheckCircle2 size={14} className="text-primary" />
-                  Baixa de venda padrão
-                </span>
-                <span className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
-                  <CheckCircle2 size={14} className="text-primary" />
-                  Dashboard com visões
-                </span>
-              </div>
             </div>
 
+            {/* ✅ removido: Interface moderna + chips (Kanban/pan, Baixa, Dashboard) */}
+
+            {/* Features */}
             <div className="mt-10 grid grid-cols-1 gap-3 max-w-2xl">
               {features.map((f) => (
                 <div
@@ -149,7 +133,8 @@ export default function Login() {
                   className="rounded-2xl border border-border/70 bg-white/5 px-5 py-4 shadow-soft"
                 >
                   <div className="flex items-start gap-3">
-                    <div className="h-10 w-10 rounded-2xl border border-border/70 bg-white/5 grid place-items-center text-text">
+                    {/* ✅ ícone na cor do PoliticAll */}
+                    <div className="h-10 w-10 rounded-2xl border border-border/70 bg-white/5 grid place-items-center">
                       {f.icon}
                     </div>
                     <div className="min-w-0">
@@ -168,15 +153,12 @@ export default function Login() {
           </div>
         </div>
 
-        {/* DIREITA (coluna inteira em tons de branco) */}
+        {/* DIREITA (coluna toda clara) */}
         <div
           className={cn(
             "lg:col-span-5 relative",
             "flex items-center justify-center p-4 md:p-10",
-            // ✅ fundo claro da coluna inteira
-            "bg-white/90",
-            // gradiente leve pra não ficar “chapado”
-            "bg-[radial-gradient(900px_520px_at_40%_20%,rgba(16,162,148,.08),transparent_60%)]"
+            "bg-white"
           )}
         >
           {/* sombra suave na divisão com o dark */}
@@ -245,13 +227,7 @@ export default function Login() {
               </form>
             </div>
 
-            {/* badge também claro */}
-            <div className="mt-4 flex items-center justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-black/10 bg-white/70 px-4 py-2 text-xs text-[#475569] shadow-sm">
-                <ShieldCheck size={14} className="text-primary" />
-                PoliticAll • UI atual • Acesso seguro
-              </div>
-            </div>
+            {/* ✅ removido: PoliticAll • UI atual • Acesso seguro */}
           </div>
         </div>
       </div>
