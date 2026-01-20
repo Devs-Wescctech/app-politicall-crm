@@ -21,8 +21,10 @@ export default function Login() {
   const nav = useNavigate();
   const { login } = useAuth();
 
-  const [email, setEmail] = useState("admin@politicall.local");
-  const [password, setPassword] = useState("admin123");
+  // ✅ 4) Retirar login "automático": campos começam vazios
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [logoOk, setLogoOk] = useState(true);
@@ -76,36 +78,32 @@ export default function Login() {
         <div className="absolute inset-0 bg-[linear-gradient(to_bottom,rgba(255,255,255,.03),transparent_28%,rgba(0,0,0,.22))]" />
       </div>
 
-      <div className="min-h-screen w-full grid lg:grid-cols-2">
+      {/* ✅ 1) Banner mais largo: 7/12 vs 5/12 */}
+      <div className="min-h-screen w-full grid lg:grid-cols-12">
         {/* ESQUERDA: Branding premium + funcionalidades */}
-        <div className="hidden lg:block relative overflow-hidden border-r border-border/70">
+        <div className="hidden lg:block relative overflow-hidden border-r border-border/70 lg:col-span-7">
           {/* camada “glass” */}
           <div className="absolute inset-0 bg-panel/35 backdrop-blur" />
 
-          {/* glows mais fortes (cor PoliticAll) */}
+          {/* glows PoliticAll */}
           <div className="pointer-events-none absolute -top-20 -left-24 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(16,162,148,.26),transparent_62%)]" />
           <div className="pointer-events-none absolute -bottom-24 -right-20 h-[520px] w-[520px] rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,.18),transparent_62%)]" />
 
           <div className="relative z-10 flex flex-col h-full w-full p-10">
             {/* Logo (igual menu) */}
             <div className="flex items-center gap-4">
-              <div className="h-[64px] w-[220px] rounded-2xl border border-border/70 bg-white/5 flex items-center justify-center overflow-hidden">
+              <div className="h-[64px] w-[240px] rounded-2xl border border-border/70 bg-white/5 flex items-center justify-center overflow-hidden">
                 {logoOk ? (
                   <img
                     src="/logo.png"
                     alt="PoliticAll"
-                    className="w-auto max-w-[200px] object-contain select-none"
+                    className="w-auto max-w-[220px] object-contain select-none"
                     style={{ height: 44, display: "block" }}
                     onError={() => setLogoOk(false)}
                   />
                 ) : (
-                  <div className="h-[44px] w-[160px] rounded-xl bg-white/5 border border-border/70" />
+                  <div className="h-[44px] w-[180px] rounded-xl bg-white/5 border border-border/70" />
                 )}
-              </div>
-
-              <div className="min-w-0">
-                <div className="text-xs text-muted">Bem-vindo ao</div>
-                <div className="text-2xl font-semibold tracking-tight">PoliticAll CRM</div>
               </div>
 
               <div className="ml-auto hidden xl:flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-3 py-1.5 text-xs text-muted">
@@ -115,12 +113,12 @@ export default function Login() {
             </div>
 
             {/* Headline */}
-            <div className="mt-12 max-w-xl">
+            <div className="mt-12 max-w-2xl">
               <div className="text-4xl font-semibold tracking-tight leading-[1.08]">
                 Pipeline, vendas e visão do funil em um CRM rápido e bonito.
               </div>
               <div className="mt-4 text-sm text-muted leading-relaxed">
-                Tudo no mesmo padrão visual do PoliticAll: cards com glass, bordas suaves, KPIs claros e navegação fluida.
+                Tudo no padrão visual do PoliticAll: cards com glass, bordas suaves, KPIs claros e navegação fluida.
               </div>
 
               <div className="mt-6 flex flex-wrap gap-2">
@@ -140,7 +138,7 @@ export default function Login() {
             </div>
 
             {/* Features */}
-            <div className="mt-10 grid grid-cols-1 gap-3 max-w-xl">
+            <div className="mt-10 grid grid-cols-1 gap-3 max-w-2xl">
               {features.map((f) => (
                 <div
                   key={f.title}
@@ -161,13 +159,13 @@ export default function Login() {
 
             <div className="mt-auto pt-10 text-xs text-muted flex items-center gap-2">
               <ShieldCheck size={14} className="text-primary" />
-              © {new Date().getFullYear()} PoliticAll CRM • Autenticação JWT • Ambiente seguro
+              © {new Date().getFullYear()} PoliticAll CRM
             </div>
           </div>
         </div>
 
         {/* DIREITA: formulário */}
-        <div className="flex items-center justify-center p-4 md:p-10">
+        <div className="flex items-center justify-center p-4 md:p-10 lg:col-span-5">
           <div className="w-full max-w-[480px]">
             {/* Logo mobile */}
             <div className="lg:hidden mb-6 rounded-2xl border border-border/70 bg-panel/60 backdrop-blur p-4 shadow-soft">
@@ -236,21 +234,18 @@ export default function Login() {
                     <ArrowRight size={16} />
                   </span>
                 </Button>
-
-                <div className="text-xs text-muted">
-                  Seed padrão:{" "}
-                  <span className="font-semibold text-text">admin@politicall.local</span> /{" "}
-                  <span className="font-semibold text-text">admin123</span> (trocar em produção)
-                </div>
               </form>
 
-              <div className="px-6 py-4 border-t border-border/60 bg-panel/30 text-xs text-muted">
-                Dica: use <span className="text-text font-semibold">ADMIN</span> para configurar usuários e permissões.
-              </div>
+              {/* ✅ 3) Removido: seed e dica ADMIN */}
+              {/* ✅ removido footer com texto extra */}
             </div>
 
             <div className="mt-4 flex items-center justify-center">
-              <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-4 py-2 text-xs text-muted">
+              <div
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full border border-border/70 bg-white/5 px-4 py-2 text-xs text-muted"
+                )}
+              >
                 <ShieldCheck size={14} className="text-primary" />
                 PoliticAll • UI atual • Acesso seguro
               </div>
